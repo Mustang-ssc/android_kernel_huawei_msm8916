@@ -21,12 +21,30 @@
 #include "core.h"
 #include "mmc_ops.h"
 
+#ifdef CONFIG_HUAWEI_SDCARD_DSM
+#include <linux/mmc/dsm_sdcard.h>
+#endif
+/* < DTS2014081108133 duanhuan 20140805 begin */
+/* < DTS2014111306772 duanhuan 20141110 begin */
+#ifdef CONFIG_HUAWEI_DSM
+/* DTS2014111306772 duanhuan 20141110 end > */
+#include <linux/mmc/dsm_emmc.h>
+extern u64 device_index;
+#endif
+/*DTS2014081108133 duanhuan 20140805 end > */
+
+
 #define MMC_OPS_TIMEOUT_MS	(10 * 60 * 1000) /* 10 minute timeout */
 
 static int _mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 {
 	int err;
 	struct mmc_command cmd = {0};
+
+#ifdef CONFIG_HUAWEI_SDCARD_DSM
+	char *log_buff;
+	int   buff_len;
+#endif
 
 	BUG_ON(!host);
 
@@ -39,10 +57,44 @@ static int _mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 		cmd.arg = 0;
 		cmd.flags = MMC_RSP_NONE | MMC_CMD_AC;
 	}
+	/*<DTS2014102702713 zhanglei 20141027 begin */	
+	/* DTS2014092304615 modified by zhaominjie zwx234339 for broken sd card problems 2014.09.26 start */
+	if (host->pm_flags & (1<<30)) {
+		host->pm_flags &= ~(1<<30);
+		err = mmc_wait_for_cmd(host, &cmd, 0);
+	} else {
+		err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);	
+	}
+	/* DTS2014092304615 modified by zhaominjie zwx234339 for broken sd card problems 2014.09.26 end */
+	/*DTS2014102702713 zhanglei 20141027 end> */
+#ifdef CONFIG_HUAWEI_SDCARD_DSM
+	
+	if(!strcmp(mmc_hostname(host), "mmc1"))
+	{
+		 dsm_sdcard_cmd_logs[DSM_SDCARD_CMD7].value = cmd.resp[0];
+	}
+	
+	if (err)
+	{
+/* DTS2014073106565 hangtianqi hwx220732 20140731 begin */
+		if(-ENOMEDIUM != err && -ETIMEDOUT != err 
+		&& !strcmp(mmc_hostname(host), "mmc1") && !dsm_client_ocuppy(sdcard_dclient))
+/* DTS2014073106565 hangtianqi hwx220732 20140731 end */		
+		{	
+			log_buff = dsm_sdcard_get_log(DSM_SDCARD_CMD7,err);	
+			buff_len = strlen(log_buff);
+			dsm_client_copy(sdcard_dclient,log_buff,buff_len + 1);
+			dsm_client_notify(sdcard_dclient, DSM_SDCARD_CMD7_RESP_ERR);
 
-	err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
+		}
+	
+		return err;
+	}
+#else
 	if (err)
 		return err;
+#endif
+
 
 	return 0;
 }
@@ -174,6 +226,11 @@ int mmc_all_send_cid(struct mmc_host *host, u32 *cid)
 {
 	int err;
 	struct mmc_command cmd = {0};
+	
+#ifdef CONFIG_HUAWEI_SDCARD_DSM
+	char *log_buff;
+	int   buff_len;
+#endif
 
 	BUG_ON(!host);
 	BUG_ON(!cid);
@@ -183,8 +240,60 @@ int mmc_all_send_cid(struct mmc_host *host, u32 *cid)
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
 
 	err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
+#ifdef CONFIG_HUAWEI_SDCARD_DSM
+	if(!strcmp(mmc_hostname(host), "mmc1"))
+	{
+		 dsm_sdcard_cmd_logs[DSM_SDCARD_CMD2_R0].value = cmd.resp[0];
+		 dsm_sdcard_cmd_logs[DSM_SDCARD_CMD2_R1].value = cmd.resp[1];
+		 dsm_sdcard_cmd_logs[DSM_SDCARD_CMD2_R2].value = cmd.resp[2];
+		 dsm_sdcard_cmd_logs[DSM_SDCARD_CMD2_R3].value = cmd.resp[3];
+		 
+	}
+
+	if (err)
+	{
+/* DTS2014073106565 hangtianqi hwx220732 20140731 begin */
+		if(-ENOMEDIUM != err && -ETIMEDOUT != err 
+		&& !strcmp(mmc_hostname(host), "mmc1") && !dsm_client_ocuppy(sdcard_dclient))
+/* DTS2014073106565 hangtianqi hwx220732 20140731 end */
+		{
+			log_buff = dsm_sdcard_get_log(DSM_SDCARD_CMD2_R3,err);
+			buff_len = strlen(log_buff);
+			dsm_client_copy(sdcard_dclient,log_buff,buff_len + 1);
+			dsm_client_notify(sdcard_dclient, DSM_SDCARD_CMD2_RESP_ERR);
+		}
+
+		/*< DTS2014120109100 yuanxiaofeng 20141201 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+		if(!strcmp(mmc_hostname(host),"mmc1"))
+		{
+			pr_err("%s: send cmd2 fail, err=%d\n", mmc_hostname(host), err);
+		}
+#endif
+		/* DTS2014120109100 yuanxiaofeng 20141201 end > */
+
+		return err;
+	}
+#else
+
+	/*< DTS2014120109100 yuanxiaofeng 20141201 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+	if (err)
+	{
+		if(!strcmp(mmc_hostname(host),"mmc1"))
+		{
+			pr_err("%s: send cmd2 fail, err=%d\n", mmc_hostname(host), err);
+		}
+		return err;
+	}
+#else
 	if (err)
 		return err;
+#endif
+	/* DTS2014120109100 yuanxiaofeng 20141201 end > */
+
+#endif
+
 
 	memcpy(cid, cmd.resp, sizeof(u32) * 4);
 
@@ -296,6 +405,19 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 		memcpy(buf, data_buf, len);
 		kfree(data_buf);
 	}
+
+	/* < DTS2014081108133 duanhuan 20140805 begin */
+	/* < DTS2014111306772 duanhuan 20141110 begin */
+#ifdef CONFIG_HUAWEI_DSM
+	/* DTS2014111306772 duanhuan 20141110 end > */
+	if(cmd.error || data.error)
+		if(host->index == device_index){
+			DSM_EMMC_LOG(card, DSM_EMMC_SEND_CXD_ERR,
+				"opcode:%d failed, cmd.error:%d, data.error:%d\n",
+				opcode, cmd.error, data.error);
+		}
+#endif
+	/*DTS2014081108133 duanhuan 20140805 end > */
 
 	if (cmd.error)
 		return cmd.error;
@@ -516,6 +638,11 @@ int mmc_send_status(struct mmc_card *card, u32 *status)
 
 	return 0;
 }
+/* < DTS2014042606672 gaoxu 20140424 begin */
+#ifdef CONFIG_HW_MMC_TEST
+EXPORT_SYMBOL_GPL(mmc_send_status);
+#endif
+/* DTS2014042606672 gaoxu 20140424 end > */
 
 static int
 mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,

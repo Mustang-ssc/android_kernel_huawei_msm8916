@@ -47,6 +47,9 @@
 
 #include <asm/ptrace.h>
 #include <asm/irq_regs.h>
+/* DTS2014112406734 wwx239977 20141129 begin */
+#define THREE_KEY_INTO_9006_DISABLE
+/* <DTS2014112406734 wwx239977 20141129 end */
 
 /* Whether we react on sysrq keys or just ignore them */
 static int __read_mostly sysrq_enabled = SYSRQ_DEFAULT_ENABLE;
@@ -55,11 +58,26 @@ static bool __read_mostly sysrq_always_enabled;
 unsigned short platform_sysrq_reset_seq[] __weak = { KEY_RESERVED };
 int sysrq_reset_downtime_ms __weak;
 
-bool sysrq_on(void)
+/* < DTS2014052905391 gaoxu 20140610 begin */
+#ifdef CONFIG_HUAWEI_DEBUG_MODE
+extern char *saved_command_line;
+#endif
+/* DTS2014052905391 gaoxu 20140610 end > */
+static bool sysrq_on(void)
 {
+    /* < DTS2014052905391 gaoxu 20140610 begin */
+#ifdef CONFIG_HUAWEI_DEBUG_MODE
+    if(strstr(saved_command_line,"huawei_debug_mode=1")!=NULL
+	    || strstr(saved_command_line,"emcno=1")!=NULL)
+    {
+    	printk("For debug mode,sysrq_enabled is true");
+    	sysrq_enabled = 1;
+    	sysrq_always_enabled = 1;
+    }
+#endif
+    /* DTS2014052905391 gaoxu 20140610 end > */
 	return sysrq_enabled || sysrq_always_enabled;
 }
-EXPORT_SYMBOL(sysrq_on);
 
 /*
  * A value of 1 means 'all', other nonzero values are an op mask:
@@ -73,8 +91,16 @@ static bool sysrq_on_mask(int mask)
 
 static int __init sysrq_always_enabled_setup(char *str)
 {
+	/* < DTS2014042503612 duxiao 20140425 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+	/* make sure sysrq_always_enabled is zero, then enable state depends on by sysrq_enabled */
+	sysrq_always_enabled = false;
+	pr_info("sysrq_always_enabled is ignored, sysrq depends on sysrq_enabled\n");
+#else
 	sysrq_always_enabled = true;
 	pr_info("sysrq always enabled.\n");
+#endif
+	/* DTS2014042503612 duxiao 20140425 end > */
 
 	return 1;
 }
@@ -599,6 +625,8 @@ static unsigned short sysrq_reset_seq[SYSRQ_KEY_RESET_MAX];
 static unsigned int sysrq_reset_seq_len;
 static unsigned int sysrq_reset_seq_version = 1;
 
+/* < DTS2014042503612 duxiao 20140425 begin */
+#ifndef CONFIG_HUAWEI_KERNEL
 static void sysrq_parse_reset_sequence(struct sysrq_state *state)
 {
 	int i;
@@ -624,12 +652,16 @@ static void sysrq_parse_reset_sequence(struct sysrq_state *state)
 
 	state->reset_seq_version = sysrq_reset_seq_version;
 }
+#endif
+/* DTS2014042503612 duxiao 20140425 end >*/
 
 static void sysrq_do_reset(unsigned long dummy)
 {
 	__handle_sysrq(sysrq_xlate[KEY_B], false);
 }
 
+/* < DTS2014042503612 duxiao 20140425 begin */
+#ifndef CONFIG_HUAWEI_KERNEL
 static void sysrq_handle_reset_request(struct sysrq_state *state)
 {
 	if (sysrq_reset_downtime_ms)
@@ -671,6 +703,8 @@ static void sysrq_detect_reset_sequence(struct sysrq_state *state,
 		}
 	}
 }
+#endif
+/* DTS2014042503612 duxiao 20140425 end >*/
 
 static void sysrq_reinject_alt_sysrq(struct work_struct *work)
 {
@@ -697,6 +731,68 @@ static void sysrq_reinject_alt_sysrq(struct work_struct *work)
 		sysrq->reinjecting = false;
 	}
 }
+
+/* <DTS2014042503612 duxiao 20140425 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+static bool sysrq_down = false;
+static int sysrq_alt_use = 0;
+static int sysrq_alt = 0;
+
+static bool sysrq_handle_keypress(struct sysrq_state *sysrq,
+				  unsigned int code, int value)
+{
+/* DTS2014112406734 wwx239977 20141129 begin */
+#ifdef THREE_KEY_INTO_9006_DISABLE
+    return false;
+#endif
+/* <DTS2014112406734 wwx239977 20141129 end */
+	switch (code) {
+    /* use volumedown + volumeup + power for sysrq function */ 
+	case KEY_VOLUMEDOWN:
+	    /* identify volumedown pressed down or not */ 
+		if (value)
+		{
+			sysrq_alt = code;
+		}
+		/* when volumedown lifted up clear the state of syrq_down and syrq_alt */ 
+		else
+		{
+			if (sysrq_down && code == sysrq_alt_use)
+			{
+				sysrq_down = false;
+			}
+			sysrq_alt = 0;
+		}
+		break;
+
+	case KEY_VOLUMEUP:
+	    /* identify volumeup pressed down or not */ 
+		if (value == 1 && sysrq_alt)
+		{
+			sysrq_down = true;
+			sysrq_alt_use = sysrq_alt;
+		}
+		break;
+
+	case KEY_POWER:
+	    /* identify power pressed down or not */ 
+		if (sysrq_down && value && value != 2)
+		{
+			pr_info("trigger system crash by sysrq.\n");
+			/* trigger system crash */ 
+			__handle_sysrq('c', true);
+		}
+		break;
+		
+	default:
+		break;
+	}
+
+	return sysrq_down;
+}
+
+#else
+/* DTS2014042503612 duxiao 20140425 end >*/
 
 static bool sysrq_handle_keypress(struct sysrq_state *sysrq,
 				  unsigned int code, int value)
@@ -789,6 +885,9 @@ static bool sysrq_handle_keypress(struct sysrq_state *sysrq,
 
 	return suppress;
 }
+/* <DTS2014042503612 duxiao 20140425 begin */
+#endif
+/* DTS2014042503612 duxiao 20140425 end >*/
 
 static bool sysrq_filter(struct input_handle *handle,
 			 unsigned int type, unsigned int code, int value)
@@ -828,6 +927,12 @@ static int sysrq_connect(struct input_handler *handler,
 	struct sysrq_state *sysrq;
 	int error;
 
+	/* <DTS2014042503612 duxiao 20140425 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+    sysrq_down = false;
+    sysrq_alt = 0;
+#endif
+	/* DTS2014042503612 duxiao 20140425 end >*/
 	sysrq = kzalloc(sizeof(struct sysrq_state), GFP_KERNEL);
 	if (!sysrq)
 		return -ENOMEM;
@@ -880,10 +985,18 @@ static void sysrq_disconnect(struct input_handle *handle)
  */
 static const struct input_device_id sysrq_ids[] = {
 	{
+	/* <DTS2014042503612 duxiao 20140425 begin */
+	/* remove the keybit of KEY_LEFTALT for sysrq function */ 
+#ifdef CONFIG_HUAWEI_KERNEL
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT,
+		.evbit = { BIT_MASK(EV_KEY) },
+#else
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 				INPUT_DEVICE_ID_MATCH_KEYBIT,
-		.evbit = { [BIT_WORD(EV_KEY)] = BIT_MASK(EV_KEY) },
-		.keybit = { [BIT_WORD(KEY_LEFTALT)] = BIT_MASK(KEY_LEFTALT) },
+		.evbit = { BIT_MASK(EV_KEY) },
+		.keybit = { BIT_MASK(KEY_LEFTALT) },
+#endif
+	/* DTS2014042503612 duxiao 20140425 end >*/
 	},
 	{ },
 };

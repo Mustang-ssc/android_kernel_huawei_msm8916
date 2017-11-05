@@ -204,6 +204,26 @@ config BATTERY_MAX17042
 	  with MAX17042. This driver also supports max17047/50 chips which are
 	  improved version of max17042.
 
+config BATTERY_MAX17048
+    tristate "Maxim MAX17048/77819 Fuel Gauge"
+    depends on I2C
+    help
+      MAX17048 is fuel-gauge systems for lithium-ion (Li+) batteries
+      in handheld and portable equipment. The MAX17048 is configured
+      to operate with a single lithium cell. MAX8997 and MAX8966 are
+      multi-function devices that include fuel gauages that are compatible
+      with MAX17048.
+
+config BATTERY_ANDROID
+	tristate "Battery driver for Android"
+	help
+	  Say Y to enable generic support for battery charging according
+	  to common Android policies.
+	  This driver adds periodic battery level and health monitoring,
+	  kernel log reporting and other debugging features, common board
+	  battery file glue logic for battery/case temperature sensors,
+	  etc.
+
 config BATTERY_Z2
 	tristate "Z2 battery driver"
 	depends on I2C && MACH_ZIPIT2
@@ -323,6 +343,12 @@ config CHARGER_MAX8998
 	  Say Y to enable support for the battery charger control sysfs and
 	  platform data of MAX8998/LP3974 PMICs.
 
+config CHARGER_MAX77819
+    tristate "Maxim MAX77819 PMIC battery charger driver"
+    depends on MFD_MAX77819
+    help
+      Say Y to enable support for the MAX77819 PMIC battery charger.
+
 config CHARGER_BQ2415X
 	tristate "TI BQ2415x battery charger driver"
 	depends on I2C
@@ -371,16 +397,6 @@ config SMB350_CHARGER
 	  The driver supports charger-enable and charger-suspend/resume.
 	  The driver reports the charger status via the power supply framework.
 	  A charger status change triggers an IRQ via the device STAT pin.
-
-config SMB1351_USB_CHARGER
-	tristate "smb1351 usb charger (with VBUS detection)"
-	depends on I2C
-	help
-	 Say Y to enable support for the SMB1351 switching mode based charger.
-	 The driver supports charging control (enable/disable) and
-	 charge-current limiting. It also provides USB VBUS detection and
-	 notification support. The driver controls SMB1351 via I2C and
-	 supports device-tree interface.
 
 config SMB135X_CHARGER
 	tristate "SMB135X Battery Charger"
@@ -445,26 +461,6 @@ config QPNP_CHARGER
 	  also offers relevant information to userspace via the power supply
 	  framework.
 
-config QPNP_SMBCHARGER
-	tristate "QPNP SMB Charger driver"
-	depends on SPMI
-	depends on OF_SPMI
-	help
-	  Say Y here to enable the dual path switch mode battery charger which
-	  supports USB detection and battery charging up to 3A.
-	  The driver also offers relevant information to userspace via the
-	  power supply framework.
-
-config QPNP_FG
-	tristate "QPNP fuel gauge driver"
-	depends on SPMI
-	depends on OF_SPMI
-	help
-	  Say Y here to enable the Fuel Gauge driver. This adds support for
-	  battery fuel gauging and state of charge of battery connected to the
-	  fuel gauge. The state of charge is reported through a BMS power
-	  supply property and also sends uevents when the capacity is updated.
-
 config PM8921_BMS
 	tristate "PM8921 Battery Monitoring System driver"
 	depends on MFD_PM8921_CORE
@@ -516,16 +512,6 @@ config QPNP_VM_BMS
 	  readings from the battery to calculate the State of
 	  Charge.
 
-config QPNP_VM_BMS_HQ
-	tristate "QPNP Voltage-Mode Battery Monitoring System (Huaqin variant) driver"
-	depends on SPMI
-	depends on MSM_QPNP_INT
-	help
-	  Say Y here to enable support for QPNP chip vm-bms device.
-	  The voltage-mode (vm) BMS driver uses periodic VBATT
-	  readings from the battery to calculate the State of
-	  Charge.
-
 config QPNP_BMS
 	tristate "QPNP Battery Monitoring System driver"
 	depends on SPMI
@@ -546,79 +532,41 @@ config QPNP_LINEAR_CHARGER
 	  detection and charging. The driver also offers relevant information
 	  to userspace via the power supply framework.
 
-config QPNP_LINEAR_CHARGER_HQ
-	tristate "QPNP Linear Charger (Huaqin variant) driver"
-	depends on SPMI
-	depends on OF_SPMI
-	depends on MSM_QPNP_INT
-	depends on THERMAL_QPNP_ADC_TM
-	help
-	  Say Y here to enable the Linear battery charger which supports USB
-	  detection and charging. The driver also offers relevant information
-	  to userspace via the power supply framework.
+config QPNP_LINEAR_CHARGER_PAD
+        tristate "QPNP Linear Charger driver for Pad"
+        depends on SPMI
+        depends on OF_SPMI
+        depends on MSM_QPNP_INT
+        depends on THERMAL_QPNP_ADC_TM
+        help
+          Say Y here to enable the Linear battery charger which supports USB
+          detection and charging. The driver also offers relevant information
+          to userspace via the power supply framework.
 
-config MSM_BCL_CTL
-	bool "BCL Framework driver"
-	help
-	  Say Y here to enable this BCL Framework driver. This driver provides
-	  interface, which can be used by the BCL h/w drivers to implement the
-	  basic functionalities. This framework abstracts the underlying
-	  hardware for the top level modules.
+#/* < DTS2014051908036 liyuping 20140519 begin */
 
-config MSM_BCL_PERIPHERAL_CTL
-	bool "BCL driver to control the PMIC BCL peripheral"
-	depends on SPMI
-	depends on MSM_BCL_CTL
-	help
-	  Say Y here to enable this BCL PMIC peripheral driver. This driver
-	  provides routines to configure and monitor the BCL
-	  PMIC peripheral.
-
-config YL_PM8916_VBUS
-	tristate "Yulong PM8916 VBUS driver"
-	depends on SPMI
-	depends on OF_SPMI
-	depends on MSM_QPNP_INT
-	depends on THERMAL_QPNP_ADC_TM
-	help
-	  Say Y here to enable the Yulong PM8916 VBUS driver
-
-config YL_BQ24157_CHARGER
-	tristate "Yulong BQ24157 charger driver"
+config BATTERY_BQ27510
+	tristate "Power supply class support"
 	depends on I2C
-	help
-	  Say Y here to enable the fan5405 sm charge driver
+	depends on HUAWEI_KERNEL
 
-config CHARGE_CONFIG_MICROMAX
-	bool "Use Micromax config for Yulong BQ24157 charger"
-	depends on YL_BQ24157_CHARGER
-	help
-	  Say Y here to use Micromax configs for yl_bq24157_charger
-
-config YL_FAN5405_CHARGER
-	tristate "Yulong FAN5405 charger driver"
+config CHARGER_BQ24152
+	tristate "Power supply class support"
 	depends on I2C
-	help
-	  Say Y here to enable the fan5405 sm charge driver
+	depends on HUAWEI_KERNEL
 
-config YL_LC709203_FUELGAUGE
-	tristate "Yulong LC709203 fuelgauge driver"
+#/* DTS2014051908036 liyuping 20140519 end > */
+
+#/* DTS2014071806762 lWX198526 l00220156 20140718 begin */
+config CHARGER_BQ2419x
+	tristate "Power supply class support"
 	depends on I2C
-	help
-	  Say Y here to enable the lc709203 fuelgauge driver
-
-config PRIORITIZE_LOAD_LC709203
-	bool "Prioritize loading lc709203 driver"
-	depends on YL_LC709203_FUELGAUGE
-	help
-	  Say Y here to prioritize loading the lc709203 driver
-
-config YL_CHARGE_MODE
-	bool "Select for fast or normal charging (Yulong)"
-	default n
-	help
-	  Say Y to enable Yulong charge mode.
-
+#/* DTS2014071806762 lWX198526 l00220156 20140718 end */
+	
+#/* < DTS2014122909056 tanyanying 20141229 begin */
+config HUAWEI_HLTHERM_CHARGING
+	bool "High and low tem charging"
+#/* DTS2014122909056 tanyanying 20141229 end > */
 source "drivers/power/reset/Kconfig"
 
 endif # POWER_SUPPLY

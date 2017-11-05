@@ -20,6 +20,11 @@
 
 #include <linux/usb/composite.h>
 #include <asm/unaligned.h>
+/* < DTS2014112103275 wenshuai 20141121 begin */
+#ifdef CONFIG_HUAWEI_USB_DSM
+#include <linux/usb/dsm_usb.h>
+#endif
+/* DTS2014112103275 wenshuai 20141121 end > */
 
 /*
  * The code in this file is utility code, used to build a gadget driver
@@ -125,16 +130,11 @@ int config_ep_by_speed(struct usb_gadget *g,
 
 ep_found:
 	/* commit results */
-	_ep->maxpacket = usb_endpoint_maxp(chosen_desc) & 0x7ff;
+	_ep->maxpacket = usb_endpoint_maxp(chosen_desc);
 	_ep->desc = chosen_desc;
 	_ep->comp_desc = NULL;
 	_ep->maxburst = 0;
-	_ep->mult = 1;
-
-	if (g->speed == USB_SPEED_HIGH && (usb_endpoint_xfer_isoc(_ep->desc) ||
-				usb_endpoint_xfer_int(_ep->desc)))
-		_ep->mult = ((usb_endpoint_maxp(_ep->desc) & 0x1800) >> 11) + 1;
-
+	_ep->mult = 0;
 	if (!want_comp_desc)
 		return 0;
 
@@ -151,7 +151,7 @@ ep_found:
 		switch (usb_endpoint_type(_ep->desc)) {
 		case USB_ENDPOINT_XFER_ISOC:
 			/* mult: bits 1:0 of bmAttributes */
-			_ep->mult = (comp_desc->bmAttributes & 0x3) + 1;
+			_ep->mult = comp_desc->bmAttributes & 0x3;
 		case USB_ENDPOINT_XFER_BULK:
 		case USB_ENDPOINT_XFER_INT:
 			_ep->maxburst = comp_desc->bMaxBurst + 1;
@@ -186,7 +186,7 @@ int usb_add_function(struct usb_configuration *config,
 {
 	int	value = -EINVAL;
 
-	DBG(config->cdev, "adding '%s'/%pK to config '%s'/%pK\n",
+	DBG(config->cdev, "adding '%s'/%p to config '%s'/%p\n",
 			function->name, function,
 			config->label, config);
 
@@ -220,7 +220,7 @@ int usb_add_function(struct usb_configuration *config,
 
 done:
 	if (value)
-		DBG(config->cdev, "adding '%s'/%pK --> %d\n",
+		DBG(config->cdev, "adding '%s'/%p --> %d\n",
 				function->name, function, value);
 	return value;
 }
@@ -342,107 +342,6 @@ int usb_interface_id(struct usb_configuration *config,
 	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(usb_interface_id);
-
-/**
- * usb_get_func_interface_id() - Find the interface ID of a function
- * @function: the function for which want to find the interface ID
- * Context: single threaded
- *
- * Returns the interface ID of the function or -ENODEV if this function
- * is not part of this configuration
- */
-int usb_get_func_interface_id(struct usb_function *func)
-{
-	int id;
-	struct usb_configuration *config;
-
-	if (!func)
-		return -EINVAL;
-
-	config = func->config;
-
-	for (id = 0; id < MAX_CONFIG_INTERFACES; id++) {
-		if (config->interface[id] == func)
-			return id;
-	}
-	return -ENODEV;
-}
-
-static int usb_func_wakeup_int(struct usb_function *func,
-					bool use_pending_flag)
-{
-	int ret;
-	int interface_id;
-	struct usb_gadget *gadget;
-
-	pr_debug("%s - %s function wakeup, use pending: %u\n",
-		__func__, func->name ? func->name : "", use_pending_flag);
-
-	if (!func || !func->config || !func->config->cdev ||
-		!func->config->cdev->gadget)
-		return -EINVAL;
-
-	gadget = func->config->cdev->gadget;
-	if ((gadget->speed != USB_SPEED_SUPER) || !func->func_wakeup_allowed) {
-		DBG(func->config->cdev,
-			"Function Wakeup is not possible. speed=%u, func_wakeup_allowed=%u\n",
-			gadget->speed,
-			func->func_wakeup_allowed);
-
-		return -ENOTSUPP;
-	}
-
-	if (use_pending_flag && !func->func_wakeup_pending) {
-		pr_debug("Pending flag is cleared - Function wakeup is cancelled.\n");
-		return 0;
-	}
-
-	ret = usb_get_func_interface_id(func);
-	if (ret < 0) {
-		ERROR(func->config->cdev,
-			"Function %s - Unknown interface id. Canceling USB request. ret=%d\n",
-			func->name ? func->name : "", ret);
-
-		return ret;
-	}
-
-	interface_id = ret;
-	ret = usb_gadget_func_wakeup(gadget, interface_id);
-
-	if (use_pending_flag) {
-		func->func_wakeup_pending = false;
-	} else {
-		if (ret == -EAGAIN)
-			func->func_wakeup_pending = true;
-	}
-
-	return ret;
-}
-
-int usb_func_wakeup(struct usb_function *func)
-{
-	int ret;
-	unsigned long flags;
-
-	pr_debug("%s function wakeup\n",
-		func->name ? func->name : "");
-
-	spin_lock_irqsave(&func->config->cdev->lock, flags);
-	ret = usb_func_wakeup_int(func, false);
-	if (ret == -EAGAIN) {
-		DBG(func->config->cdev,
-			"Function wakeup for %s could not complete due to suspend state. Delayed until after bus resume.\n",
-			func->name ? func->name : "");
-		ret = 0;
-	} else if (ret < 0 && ret != -ENOTSUPP) {
-		ERROR(func->config->cdev,
-			"Failed to wake function %s from suspend state. ret=%d. Canceling USB request.\n",
-			func->name ? func->name : "", ret);
-	}
-
-	spin_unlock_irqrestore(&func->config->cdev->lock, flags);
-	return ret;
-}
 
 static u8 encode_bMaxPower(enum usb_device_speed speed,
 		struct usb_configuration *c)
@@ -635,7 +534,7 @@ static int bos_desc(struct usb_composite_dev *cdev)
 	usb_ext->bLength = USB_DT_USB_EXT_CAP_SIZE;
 	usb_ext->bDescriptorType = USB_DT_DEVICE_CAPABILITY;
 	usb_ext->bDevCapabilityType = USB_CAP_TYPE_EXT;
-	usb_ext->bmAttributes = cpu_to_le32(USB_LPM_SUPPORT | USB_BESL_SUPPORT);
+	usb_ext->bmAttributes = cpu_to_le32(USB_LPM_SUPPORT);
 
 	if (gadget_is_superspeed(cdev->gadget)) {
 		/*
@@ -701,11 +600,6 @@ static void reset_config(struct usb_composite_dev *cdev)
 		if (f->disable)
 			f->disable(f);
 
-		/* USB 3.0 addition */
-		f->func_is_suspended = false;
-		f->func_wakeup_allowed = false;
-		f->func_wakeup_pending = false;
-
 		bitmap_zero(f->endpoints, 32);
 	}
 	cdev->config = NULL;
@@ -720,16 +614,6 @@ static int set_config(struct usb_composite_dev *cdev,
 	int			result = -EINVAL;
 	unsigned		power = gadget_is_otg(gadget) ? 8 : 100;
 	int			tmp;
-
-	/*
-	 * ignore 2nd time SET_CONFIGURATION
-	 * only for same config value twice.
-	 */
-	if (cdev->config && (cdev->config->bConfigurationValue == number)) {
-		DBG(cdev, "already in the same config with value %d\n",
-				number);
-		return 0;
-	}
 
 	if (number) {
 		list_for_each_entry(c, &cdev->configs, list) {
@@ -761,8 +645,6 @@ static int set_config(struct usb_composite_dev *cdev,
 		goto done;
 
 	cdev->config = c;
-	c->num_ineps_used = 0;
-	c->num_outeps_used = 0;
 
 	/* Initialize all interfaces by setting them to altsetting zero. */
 	for (tmp = 0; tmp < MAX_CONFIG_INTERFACES; tmp++) {
@@ -780,12 +662,6 @@ static int set_config(struct usb_composite_dev *cdev,
 		 */
 		switch (gadget->speed) {
 		case USB_SPEED_SUPER:
-			if (!f->ss_descriptors) {
-				pr_err("%s(): No SS desc for function:%s\n",
-							__func__, f->name);
-				usb_gadget_set_state(gadget, USB_STATE_ADDRESS);
-				return -EINVAL;
-			}
 			descriptors = f->ss_descriptors;
 			break;
 		case USB_SPEED_HIGH:
@@ -806,15 +682,11 @@ static int set_config(struct usb_composite_dev *cdev,
 			addr = ((ep->bEndpointAddress & 0x80) >> 3)
 			     |  (ep->bEndpointAddress & 0x0f);
 			set_bit(addr, f->endpoints);
-			if (usb_endpoint_dir_in(ep))
-				c->num_ineps_used++;
-			else
-				c->num_outeps_used++;
 		}
 
 		result = f->set_alt(f, tmp, 0);
 		if (result < 0) {
-			DBG(cdev, "interface %d (%s/%pK) alt 0 --> %d\n",
+			DBG(cdev, "interface %d (%s/%p) alt 0 --> %d\n",
 					tmp, f->name, f, result);
 
 			reset_config(cdev);
@@ -889,7 +761,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 	if (!bind)
 		goto done;
 
-	DBG(cdev, "adding config #%u '%s'/%pK\n",
+	DBG(cdev, "adding config #%u '%s'/%p\n",
 			config->bConfigurationValue,
 			config->label, config);
 
@@ -906,7 +778,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 					struct usb_function, list);
 			list_del(&f->list);
 			if (f->unbind) {
-				DBG(cdev, "unbind function '%s'/%pK\n",
+				DBG(cdev, "unbind function '%s'/%p\n",
 					f->name, f);
 				f->unbind(config, f);
 				/* may free memory for "f" */
@@ -917,7 +789,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 	} else {
 		unsigned	i;
 
-		DBG(cdev, "cfg %d/%pK speeds:%s%s%s\n",
+		DBG(cdev, "cfg %d/%p speeds:%s%s%s\n",
 			config->bConfigurationValue, config,
 			config->superspeed ? " super" : "",
 			config->highspeed ? " high" : "",
@@ -932,7 +804,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 
 			if (!f)
 				continue;
-			DBG(cdev, "  interface %d = %s/%pK\n",
+			DBG(cdev, "  interface %d = %s/%p\n",
 				i, f->name, f);
 		}
 	}
@@ -960,13 +832,13 @@ static void unbind_config(struct usb_composite_dev *cdev,
 				struct usb_function, list);
 		list_del(&f->list);
 		if (f->unbind) {
-			DBG(cdev, "unbind function '%s'/%pK\n", f->name, f);
+			DBG(cdev, "unbind function '%s'/%p\n", f->name, f);
 			f->unbind(config, f);
 			/* may free memory for "f" */
 		}
 	}
 	if (config->unbind) {
-		DBG(cdev, "unbind config '%s'/%pK\n", config->label, config);
+		DBG(cdev, "unbind config '%s'/%p\n", config->label, config);
 		config->unbind(config);
 			/* may free memory for "c" */
 	}
@@ -1345,9 +1217,23 @@ EXPORT_SYMBOL_GPL(usb_string_ids_n);
 static void composite_setup_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	if (req->status || req->actual != req->length)
+	/* < DTS2015012001862 shukai/wx221430 20150120 begin */
+	/* < DTS2014112103275 wenshuai 20141121 begin */
+//#ifndef CONFIG_HUAWEI_USB_DSM      //delete usb radar 21305
+#if 1
 		DBG((struct usb_composite_dev *) ep->driver_data,
 				"setup complete --> %d, %d/%d\n",
 				req->status, req->actual, req->length);
+#else
+	{
+		DSM_USB_LOG(DSM_USB_DEVICE, NULL, DSM_USB_DEVICE_EMU__ERR,
+				"setup complete --> %d, %d/%d\n",
+				req->status, req->actual, req->length);
+
+	}
+#endif
+	/* DTS2014112103275 wenshuai 20141121 end > */
+	/* DTS2015012001862 shukai/wx221430 20150120 end > */
 }
 
 /*
@@ -1484,7 +1370,9 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		value = min(w_length, (u16) 1);
 		break;
 
-	/* function drivers must handle get/set altsetting */
+	/* function drivers must handle get/set altsetting; if there's
+	 * no get() method, we know only altsetting zero works.
+	 */
 	case USB_REQ_SET_INTERFACE:
 		if (ctrl->bRequestType != USB_RECIP_INTERFACE)
 			goto unknown;
@@ -1493,13 +1381,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		f = cdev->config->interface[intf];
 		if (!f)
 			break;
-
-		/*
-		 * If there's no get_alt() method, we know only altsetting zero
-		 * works. There is no need to check if set_alt() is not NULL
-		 * as we check this in usb_add_function().
-		 */
-		if (w_value && !f->get_alt)
+		if (w_value && !f->set_alt)
 			break;
 		/*
 		 * We put interfaces in default settings (alt 0)
@@ -1579,13 +1461,8 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			if (!f)
 				break;
 			value = 0;
-			if (f->func_suspend) {
-				const u8 suspend_opt = w_index >> 8;
-
-				value = f->func_suspend(f, suspend_opt);
-				DBG(cdev, "%s function: FUNCTION_SUSPEND(%u)",
-					f->name ? f->name : "", suspend_opt);
-			}
+			if (f->func_suspend)
+				value = f->func_suspend(f, w_index >> 8);
 			if (value < 0) {
 				ERROR(cdev,
 				      "func_suspend() returned error %d\n",
@@ -1637,7 +1514,7 @@ unknown:
 			if (c && c->setup)
 				value = c->setup(c, ctrl);
 		}
-		if (f && value == USB_GADGET_DELAYED_STATUS) {
+		if (value == USB_GADGET_DELAYED_STATUS) {
 			DBG(cdev,
 			 "%s: interface %d (%s) requested delayed status\n",
 					__func__, intf, f->name);
@@ -1911,9 +1788,13 @@ composite_resume(struct usb_gadget *gadget)
 {
 	struct usb_composite_dev	*cdev = get_gadget_data(gadget);
 	struct usb_function		*f;
+	/* <DTS2014072602672 sunwenyong 20140813 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+	u16				maxpower;
+#else
 	u8				maxpower;
-	int ret;
-	unsigned long			flags;
+#endif
+	/* DTS2014072602672 sunwenyong 20140813 end> */
 
 	/* REVISIT:  should we have config level
 	 * suspend/resume callbacks?
@@ -1921,25 +1802,8 @@ composite_resume(struct usb_gadget *gadget)
 	DBG(cdev, "resume\n");
 	if (cdev->driver->resume)
 		cdev->driver->resume(cdev);
-
-	spin_lock_irqsave(&cdev->lock, flags);
 	if (cdev->config) {
 		list_for_each_entry(f, &cdev->config->functions, list) {
-			ret = usb_func_wakeup_int(f, true);
-			if (ret) {
-				if (ret == -EAGAIN) {
-					ERROR(f->config->cdev,
-						"Function wakeup for %s could not complete due to suspend state.\n",
-						f->name ? f->name : "");
-					break;
-				} else if (ret != -ENOTSUPP) {
-					ERROR(f->config->cdev,
-						"Failed to wake function %s from suspend state. ret=%d. Canceling USB request.\n",
-						f->name ? f->name : "",
-						ret);
-				}
-			}
-
 			if (f->resume)
 				f->resume(f);
 		}
@@ -1950,7 +1814,6 @@ composite_resume(struct usb_gadget *gadget)
 			maxpower : CONFIG_USB_GADGET_VBUS_DRAW);
 	}
 
-	spin_unlock_irqrestore(&cdev->lock, flags);
 	cdev->suspended = 0;
 }
 
@@ -1990,7 +1853,6 @@ static const struct usb_gadget_driver composite_driver_template = {
 int usb_composite_probe(struct usb_composite_driver *driver)
 {
 	struct usb_gadget_driver *gadget_driver;
-	u8 core_id;
 
 	if (!driver || !driver->dev || !driver->bind)
 		return -EINVAL;
@@ -1998,7 +1860,6 @@ int usb_composite_probe(struct usb_composite_driver *driver)
 	if (!driver->name)
 		driver->name = "composite";
 
-	core_id = driver->gadget_driver.usb_core_id;
 	driver->gadget_driver = composite_driver_template;
 	gadget_driver = &driver->gadget_driver;
 
@@ -2006,11 +1867,6 @@ int usb_composite_probe(struct usb_composite_driver *driver)
 	gadget_driver->driver.name = driver->name;
 	gadget_driver->max_speed = driver->max_speed;
 
-	if (core_id)
-		gadget_driver->usb_core_id = core_id;
-
-	pr_debug("%s(): gadget_driver->usb_core_id:%d\n", __func__,
-					gadget_driver->usb_core_id);
 	return usb_gadget_probe_driver(gadget_driver);
 }
 EXPORT_SYMBOL_GPL(usb_composite_probe);

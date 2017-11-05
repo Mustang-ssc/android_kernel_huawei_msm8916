@@ -15,7 +15,6 @@
 
 #include <linux/workqueue.h>
 #include <linux/leds.h>
-#include <linux/types.h>
 
 struct device;
 
@@ -87,19 +86,6 @@ enum {
 	POWER_SUPPLY_SCOPE_DEVICE,
 };
 
-enum {
-	POWER_SUPPLY_DP_DM_UNKNOWN = 0,
-	POWER_SUPPLY_DP_DM_PREPARE = 1,
-	POWER_SUPPLY_DP_DM_UNPREPARE = 2,
-	POWER_SUPPLY_DP_DM_CONFIRMED_HVDCP3 = 3,
-	POWER_SUPPLY_DP_DM_DP_PULSE = 4,
-	POWER_SUPPLY_DP_DM_DM_PULSE = 5,
-	POWER_SUPPLY_DP_DM_DP0P6_DMF = 6,
-	POWER_SUPPLY_DP_DM_DP0P6_DM3P3 = 7,
-	POWER_SUPPLY_DP_DM_DPF_DMF = 8,
-	POWER_SUPPLY_DP_DM_DPR_DMR = 9,
-};
-
 enum power_supply_property {
 	/* Properties of type `int' */
 	POWER_SUPPLY_PROP_STATUS = 0,
@@ -108,8 +94,19 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_AUTHENTIC,
-	POWER_SUPPLY_PROP_BATTERY_CHARGING_ENABLED,
 	POWER_SUPPLY_PROP_CHARGING_ENABLED,
+    /* DTS2014072806213 by l00220156 for factory interfaces 20140728 begin */
+	POWER_SUPPLY_PROP_CURRENT_REALTIME,
+    /* DTS2014072806213 by l00220156 for factory interfaces 20140728 end */
+	/* <DTS2014052400953 chenyuanquan 20140524 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+	POWER_SUPPLY_PROP_FACTORY_DIAG,
+	POWER_SUPPLY_PROP_HOT_IBAT_LIMIT,
+	/* <DTS2014110409521 caiwei 20141104 begin */
+	POWER_SUPPLY_PROP_HOT_TEMP_TEST_STATUS,
+   /* DTS2014110409521 caiwei 20141104 end> */
+#endif
+	/* DTS2014052400953 chenyuanquan 20140524 end> */
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
@@ -124,7 +121,6 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_INPUT_CURRENT_MAX,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_TRIM,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_SETTLED,
-	POWER_SUPPLY_PROP_VCHG_LOOP_DBC_BYPASS,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_POWER_NOW,
@@ -170,32 +166,32 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_TYPE, /* use power_supply.type instead */
 	POWER_SUPPLY_PROP_SCOPE,
 	POWER_SUPPLY_PROP_SYSTEM_TEMP_LEVEL,
+/* <DTS2014051601896 jiangfei 20140516 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+	POWER_SUPPLY_PROP_RUNNING_TEST_STATUS,
+#endif
+/* DTS2014051601896 jiangfei 20140516 end> */
 	POWER_SUPPLY_PROP_RESISTANCE,
 	POWER_SUPPLY_PROP_RESISTANCE_CAPACITIVE,
-	/* unit is in ohms due to ID being typically in kohm range */
-	POWER_SUPPLY_PROP_RESISTANCE_ID,
-	POWER_SUPPLY_PROP_RESISTANCE_NOW,
 	/* Local extensions */
 	POWER_SUPPLY_PROP_USB_HC,
 	POWER_SUPPLY_PROP_USB_OTG,
 	POWER_SUPPLY_PROP_CHARGE_ENABLED,
-	POWER_SUPPLY_PROP_FLASH_CURRENT_MAX,
-	POWER_SUPPLY_PROP_UPDATE_NOW,
-	POWER_SUPPLY_PROP_ESR_COUNT,
-	POWER_SUPPLY_PROP_DP_DM,
-	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMITED,
-	POWER_SUPPLY_PROP_IGNORE_FALSE_NEGATIVE_ISENSE,
-	POWER_SUPPLY_PROP_ENABLE_JEITA_DETECTION,
-	/* Local extensions of type int64_t */
-	POWER_SUPPLY_PROP_CHARGE_COUNTER_EXT,
+	/* <DTS2014071002612  mapengfei 20140710 begin */
+#ifdef CONFIG_HUAWEI_KERNEL	
+	POWER_SUPPLY_PROP_RESUME_CHARGING,
+#endif	
+	/* DTS2014071002612  mapengfei 20140710 end> */
 	/* Properties of type `const char *' */
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 	POWER_SUPPLY_PROP_BATTERY_TYPE,
-#ifdef CONFIG_MACH_YULONG
-	POWER_SUPPLY_PROP_YL_CRTL_CHG_INTERFACE,
+	/* <DTS2014061002202 jiangfei 20140610 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+	POWER_SUPPLY_PROP_CHARGE_LOG,
 #endif
+	/* DTS2014061002202 jiangfei 20140610 end> */
 };
 
 enum power_supply_type {
@@ -207,20 +203,19 @@ enum power_supply_type {
 	POWER_SUPPLY_TYPE_USB_DCP,	/* Dedicated Charging Port */
 	POWER_SUPPLY_TYPE_USB_CDP,	/* Charging Downstream Port */
 	POWER_SUPPLY_TYPE_USB_ACA,	/* Accessory Charger Adapters */
-	POWER_SUPPLY_TYPE_USB_HVDCP,	/* High Voltage DCP */
-	POWER_SUPPLY_TYPE_USB_HVDCP_3,  /* Efficient High Voltage DCP */
 	POWER_SUPPLY_TYPE_WIRELESS,	/* Accessory Charger Adapters */
 	POWER_SUPPLY_TYPE_BMS,		/* Battery Monitor System */
-#ifdef CONFIG_MACH_YULONG
-	POWER_SUPPLY_TYPE_YL_BATTERY,	/* yulong add for yl_adc_battery */
-#endif
 	POWER_SUPPLY_TYPE_USB_PARALLEL,		/* USB Parallel Path */
+	/* DTS2014071806762 lWX198526 l00220156 20140718 begin */
+	#ifdef CONFIG_CHARGER_BQ2419x
+	POWER_SUPPLY_TYPE_OTG,
+    #endif
+	/* DTS2014071806762 lWX198526 l00220156 20140718 end */
 };
 
 union power_supply_propval {
 	int intval;
 	const char *strval;
-	int64_t int64val;
 };
 
 struct power_supply {
@@ -301,7 +296,6 @@ extern void power_supply_changed(struct power_supply *psy);
 extern int power_supply_am_i_supplied(struct power_supply *psy);
 extern int power_supply_set_battery_charged(struct power_supply *psy);
 extern int power_supply_set_current_limit(struct power_supply *psy, int limit);
-extern int power_supply_set_voltage_limit(struct power_supply *psy, int limit);
 extern int power_supply_set_online(struct power_supply *psy, bool enable);
 extern int power_supply_set_health_state(struct power_supply *psy, int health);
 extern int power_supply_set_present(struct power_supply *psy, bool enable);
@@ -312,8 +306,6 @@ extern int power_supply_set_supply_type(struct power_supply *psy,
 					enum power_supply_type supply_type);
 extern int power_supply_set_hi_power_state(struct power_supply *psy, int value);
 extern int power_supply_set_low_power_state(struct power_supply *psy,
-							int value);
-extern int power_supply_set_dp_dm(struct power_supply *psy,
 							int value);
 extern int power_supply_is_system_supplied(void);
 extern int power_supply_register(struct device *parent,
@@ -327,9 +319,6 @@ static inline void power_supply_changed(struct power_supply *psy) { }
 static inline int power_supply_am_i_supplied(struct power_supply *psy)
 							{ return -ENOSYS; }
 static inline int power_supply_set_battery_charged(struct power_supply *psy)
-							{ return -ENOSYS; }
-static inline int power_supply_set_voltage_limit(struct power_supply *psy,
-							int limit)
 							{ return -ENOSYS; }
 static inline int power_supply_set_current_limit(struct power_supply *psy,
 							int limit)
@@ -358,9 +347,6 @@ static inline int power_supply_set_hi_power_state(struct power_supply *psy,
 							int value)
 							{ return -ENOSYS; }
 static inline int power_supply_set_low_power_state(struct power_supply *psy,
-							int value)
-							{ return -ENOSYS; }
-static inline int power_supply_set_dp_dm(struct power_supply *psy,
 							int value)
 							{ return -ENOSYS; }
 static inline int power_supply_is_system_supplied(void) { return -ENOSYS; }
@@ -393,7 +379,6 @@ static inline bool power_supply_is_amp_property(enum power_supply_property psp)
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_MAX:
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
-	case POWER_SUPPLY_PROP_FLASH_CURRENT_MAX:
 		return 1;
 	default:
 		break;

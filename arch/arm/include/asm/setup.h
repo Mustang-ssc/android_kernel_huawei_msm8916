@@ -16,6 +16,18 @@
 
 #include <uapi/asm/setup.h>
 
+/*< DTS2014040701285 zhouhaibo 20140407 begin*/
+#ifdef CONFIG_HUAWEI_KERNEL
+/*< DTS2012092200747 dingzhipeng 20120922 begin*/
+/*< DTS2012062802656 dingzhipeng 20120628 begin*/
+/* runmode : factory , normal */
+#define ATAG_RUNMODE_FLAG  0x54410102
+
+bool is_runmode_factory(void);
+/* DTS2012062802656 dingzhipeng 20120628 end >*/
+/* DTS2012092200747 dingzhipeng 20120922 end >*/
+#endif
+/* DTS2014040701285 zhouhaibo 20140407 end >*/
 
 #define __tag __used __attribute__((__section__(".taglist.init")))
 #define __tagtable(tag, fn) \

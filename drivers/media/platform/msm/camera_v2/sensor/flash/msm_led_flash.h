@@ -32,6 +32,9 @@ struct msm_flash_fn_t {
 	int32_t (*flash_led_off)(struct msm_led_flash_ctrl_t *);
 	int32_t (*flash_led_low)(struct msm_led_flash_ctrl_t *);
 	int32_t (*flash_led_high)(struct msm_led_flash_ctrl_t *);
+	/* < DTS2014042700594 yangjiangjun 20140427 begin */
+	int32_t (*torch_led_on)(struct msm_led_flash_ctrl_t *);
+	/* DTS2014042700594 yangjiangjun 20140427 end > */
 };
 
 struct msm_led_flash_reg_t {
@@ -40,6 +43,9 @@ struct msm_led_flash_reg_t {
 	struct msm_camera_i2c_reg_setting *release_setting;
 	struct msm_camera_i2c_reg_setting *low_setting;
 	struct msm_camera_i2c_reg_setting *high_setting;
+	/* < DTS2014042700594 yangjiangjun 20140427 begin */
+	struct msm_camera_i2c_reg_setting *torch_setting;
+	/* DTS2014042700594 yangjiangjun 20140427 end > */
 };
 
 struct msm_led_flash_ctrl_t {
@@ -49,26 +55,24 @@ struct msm_led_flash_ctrl_t {
 	struct msm_flash_fn_t *func_tbl;
 	struct msm_camera_sensor_board_info *flashdata;
 	struct msm_led_flash_reg_t *reg_setting;
-	/* Flash */
 	const char *flash_trigger_name[MAX_LED_TRIGGERS];
 	struct led_trigger *flash_trigger[MAX_LED_TRIGGERS];
-	uint32_t flash_num_sources;
 	uint32_t flash_op_current[MAX_LED_TRIGGERS];
 	uint32_t flash_max_current[MAX_LED_TRIGGERS];
-	uint32_t flash_max_duration[MAX_LED_TRIGGERS];
-	/* Torch */
-	const char *torch_trigger_name[MAX_LED_TRIGGERS];
-	struct led_trigger *torch_trigger[MAX_LED_TRIGGERS];
-	uint32_t torch_num_sources;
-	uint32_t torch_op_current[MAX_LED_TRIGGERS];
-	uint32_t torch_max_current[MAX_LED_TRIGGERS];
-
+	const char *torch_trigger_name;
+	struct led_trigger *torch_trigger;
+	uint32_t torch_op_current;
+	uint32_t torch_max_current;
 	void *data;
+	uint32_t num_sources;
 	enum msm_camera_device_type_t flash_device_type;
 	enum cci_i2c_master_t cci_i2c_master;
-	enum msm_camera_led_config_t led_state;
+        enum msm_camera_led_config_t led_state;
 	uint32_t subdev_id;
 	struct msm_pinctrl_info pinctrl_info;
+	/* < DTS2014042700594 yangjiangjun 20140427 begin */
+	uint32_t flash_high_current;
+	/* DTS2014042700594 yangjiangjun 20140427 end > */
 };
 
 int msm_flash_i2c_probe(struct i2c_client *client,
@@ -91,18 +95,4 @@ int msm_flash_led_release(struct msm_led_flash_ctrl_t *fctrl);
 int msm_flash_led_off(struct msm_led_flash_ctrl_t *fctrl);
 int msm_flash_led_low(struct msm_led_flash_ctrl_t *fctrl);
 int msm_flash_led_high(struct msm_led_flash_ctrl_t *fctrl);
-
-#ifdef CONFIG_MACH_YULONG
-int msm_flash_gpio_probe(struct platform_device *pdev, const void *data);
-int32_t msm_led_gpio_trigger_get_subdev_id(struct msm_led_flash_ctrl_t *fctrl,
-	void *arg);
-int32_t msm_led_gpio_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
-	void *data);
-int msm_flash_led_gpio_init(struct msm_led_flash_ctrl_t *fctrl);
-int msm_flash_led_gpio_release(struct msm_led_flash_ctrl_t *fctrl);
-int msm_flash_led_gpio_off(struct msm_led_flash_ctrl_t *fctrl);
-int msm_flash_led_gpio_low(struct msm_led_flash_ctrl_t *fctrl);
-int msm_flash_led_gpio_high(struct msm_led_flash_ctrl_t *fctrl);
-#endif
-
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2014,2017 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -29,6 +29,11 @@
 
 #include <soc/qcom/smem.h>
 
+/* < DTS2014070813095  renlipeng 20140708 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+#include <soc/qcom/subsystem_restart.h>
+#endif
+/* DTS2014070813095  renlipeng 20140708 end > */
 
 #include "smem_private.h"
 
@@ -361,7 +366,7 @@ static void *__smem_get_entry_secure(unsigned id,
 	uint32_t a_hdr_size;
 	int rc;
 
-	SMEM_DBG("%s(%u, %u, %u, %d, %d)\n", __func__, id, to_proc,
+	SMEM_DBG("%s(%u, %u, %u, %u, %d, %d)\n", __func__, id, *size, to_proc,
 					flags, skip_init_check, use_rspinlock);
 
 	if (!skip_init_check && !smem_initialized_check())
@@ -776,7 +781,7 @@ EXPORT_SYMBOL(smem_alloc);
 void *smem_get_entry(unsigned id, unsigned *size, unsigned to_proc,
 								unsigned flags)
 {
-	SMEM_DBG("%s(%u, %u, %u)\n", __func__, id, to_proc, flags);
+	SMEM_DBG("%s(%u, %u, %u, %u)\n", __func__, id, *size, to_proc, flags);
 
 	/*
 	 * Handle the circular dependecy between SMEM and software implemented
@@ -988,6 +993,7 @@ static int restart_notifier_cb(struct notifier_block *this,
 				unsigned long code,
 				void *data)
 {
+	/*< DTS2014092403407  zengwei/WX221991 20140928 begain */
 	struct restart_notifier_block *notifier;
 	struct notif_data *notifdata = data;
 	int ret;
@@ -1021,7 +1027,7 @@ static int restart_notifier_cb(struct notifier_block *this,
 	default:
 		break;
 	}
-
+	/* DTS2014092403407  zengwei/WX221991 20140928 end >*/
 	return NOTIFY_DONE;
 }
 
@@ -1347,7 +1353,7 @@ smem_targ_info_done:
 		goto free_smem_areas;
 	}
 
-	ramdump_segments_tmp = kcalloc(num_smem_areas,
+	ramdump_segments_tmp = kmalloc_array(num_smem_areas,
 			sizeof(struct ramdump_segment), GFP_KERNEL);
 	if (!ramdump_segments_tmp) {
 		LOG_ERR("%s: ramdump segment kmalloc failed\n", __func__);
@@ -1467,7 +1473,7 @@ int __init msm_smem_init(void)
 
 	registered = true;
 
-	smem_ipc_log_ctx = ipc_log_context_create(NUM_LOG_PAGES, "smem", 0);
+	smem_ipc_log_ctx = ipc_log_context_create(NUM_LOG_PAGES, "smem");
 	if (!smem_ipc_log_ctx) {
 		pr_err("%s: unable to create logging context\n", __func__);
 		msm_smem_debug_mask = 0;

@@ -76,8 +76,12 @@ static void gpio_led_set(struct led_classdev *led_cdev,
 			led_dat->platform_gpio_blink_set(led_dat->gpio, level,
 							 NULL, NULL);
 			led_dat->blinking = 0;
-		} else
+        /* < DTS2014061000435 wanghang 20140610 begin */
+		} else{
+		        dev_info(led_dat->cdev.dev, "%s:leds tricolor set %s (%d)\n",__func__,led_dat->cdev.name, level);
 			gpio_set_value(led_dat->gpio, level);
+		}
+        /* DTS2014061000435 wanghang 20140610 end > */
 	}
 }
 

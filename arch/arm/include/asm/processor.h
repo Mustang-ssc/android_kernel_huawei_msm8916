@@ -31,6 +31,13 @@
 
 extern unsigned int boot_reason;
 extern unsigned int cold_boot;
+/* < DTS2014071201040 wuzhen/00213434 yuanxiaofeng/278246 20140711 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+#ifndef HIDE_PRODUCT_INFO_KERNEL
+    extern unsigned int hide_info;
+#endif
+#endif
+/* DTS2014071201040 wuzhen/00213434 yuanxiaofeng/278246 20140711 end > */
 
 struct debug_info {
 #ifdef CONFIG_HAVE_HW_BREAKPOINT

@@ -29,7 +29,12 @@
  * manage to keep the high write throughput.
  */
 #define DEFAULT_NUM_REQS_TO_START_PACK 17
-
+/* < DTS2014050707299  wenshuai 20140507 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+extern struct scatterlist* sdhci_get_cur_sg(void);
+extern struct scatterlist* sdhci_get_prev_sg(void);
+#endif
+/* < DTS2014050707299  wenshuai 20140507 begin */
 /*
  * Prepare a MMC request. This just filters out odd stuff.
  */
@@ -45,7 +50,7 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
 		return BLKPREP_KILL;
 	}
 
-	if (mq && (mmc_card_removed(mq->card) || mmc_access_rpmb(mq)))
+	if (mq && mmc_card_removed(mq->card))
 		return BLKPREP_KILL;
 
 	req->cmd_flags |= REQ_DONTPREP;
@@ -343,7 +348,25 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 		blk_queue_max_segment_size(mq->queue, host->max_seg_size);
 retry:
 		blk_queue_max_segments(mq->queue, host->max_segs);
+/* < DTS2014050707299  wenshuai 20140507 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+		/*if sdcard, use cache prealloced in host malloc*/
+		if(MMC_TYPE_SD  == card->type){
+			mqrq_cur->sg = sdhci_get_cur_sg();
+			if(NULL == mqrq_cur->sg){
+				printk(KERN_ERR "%s:get cur_sg cache failed\n", __FUNCTION__);
+				goto cleanup_queue;
+			}
 
+			mqrq_prev->sg = sdhci_get_prev_sg();
+			if(NULL == mqrq_prev->sg){
+				printk("%s:get prev_sg cache failed\n", __FUNCTION__);
+				goto cleanup_queue;
+			}
+
+			pr_info("sdcard use cache sucess\n");
+		}
+		else{
 		mqrq_cur->sg = mmc_alloc_sg(host->max_segs, &ret);
 		if (ret == -ENOMEM)
 			goto cur_sg_alloc_failed;
@@ -355,7 +378,22 @@ retry:
 			goto prev_sg_alloc_failed;
 		else if (ret)
 			goto cleanup_queue;
+		}
 
+#else
+		mqrq_cur->sg = mmc_alloc_sg(host->max_segs, &ret);
+		if (ret == -ENOMEM)
+			goto cur_sg_alloc_failed;
+		else if (ret)
+			goto cleanup_queue;
+
+		mqrq_prev->sg = mmc_alloc_sg(host->max_segs, &ret);
+		if (ret == -ENOMEM)
+			goto prev_sg_alloc_failed;
+		else if (ret)
+			goto cleanup_queue;
+#endif
+/* < DTS2014050707299  wenshuai 20140507 end */
 		goto success;
 
 prev_sg_alloc_failed:
@@ -390,12 +428,27 @@ success:
 	mqrq_prev->bounce_sg = NULL;
 
  cleanup_queue:
+/* < DTS2014050707299  wenshuai 20140507 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+	if(MMC_TYPE_SD  != card->type){
+		kfree(mqrq_cur->sg);
+	}
+#else
 	kfree(mqrq_cur->sg);
+#endif
+/* < DTS2014050707299  wenshuai 20140507 end */
 	mqrq_cur->sg = NULL;
 	kfree(mqrq_cur->bounce_buf);
 	mqrq_cur->bounce_buf = NULL;
-
+/* < DTS2014050707299  wenshuai 20140507 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+	if(MMC_TYPE_SD  != card->type){
+		kfree(mqrq_prev->sg);
+    }
+#else
 	kfree(mqrq_prev->sg);
+#endif
+/* < DTS2014050707299  wenshuai 20140507 end */
 	mqrq_prev->sg = NULL;
 	kfree(mqrq_prev->bounce_buf);
 	mqrq_prev->bounce_buf = NULL;
@@ -410,7 +463,11 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	unsigned long flags;
 	struct mmc_queue_req *mqrq_cur = mq->mqrq_cur;
 	struct mmc_queue_req *mqrq_prev = mq->mqrq_prev;
-
+/* < DTS2014050707299  wenshuai 20140507 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+	struct mmc_card *card = mq->card;
+#endif
+/* < DTS2014050707299  wenshuai 20140507 end */
 	/* Make sure the queue isn't suspended, as that will deadlock */
 	mmc_queue_resume(mq);
 
@@ -425,8 +482,16 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 
 	kfree(mqrq_cur->bounce_sg);
 	mqrq_cur->bounce_sg = NULL;
-
+/* < DTS2014050707299  wenshuai 20140507 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+	/*do not free sdcard cache*/
+	if(MMC_TYPE_SD  != card->type){
+		kfree(mqrq_cur->sg);
+	}
+#else
 	kfree(mqrq_cur->sg);
+#endif
+/* < DTS2014050707299  wenshuai 20140507 end */
 	mqrq_cur->sg = NULL;
 
 	kfree(mqrq_cur->bounce_buf);
@@ -434,8 +499,16 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 
 	kfree(mqrq_prev->bounce_sg);
 	mqrq_prev->bounce_sg = NULL;
-
+/* < DTS2014050707299  wenshuai 20140507 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+	/*do not free sdcard cache*/
+	if(MMC_TYPE_SD  != card->type){
+		kfree(mqrq_prev->sg);
+	}
+#else
 	kfree(mqrq_prev->sg);
+#endif
+/* < DTS2014050707299  wenshuai 20140507 end */
 	mqrq_prev->sg = NULL;
 
 	kfree(mqrq_prev->bounce_buf);

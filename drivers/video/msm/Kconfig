@@ -512,6 +512,9 @@ config FB_MSM_QPIC_PANEL_DETECT
 	  Support for Qpic panel auto detect
 
 if FB_MSM_MDSS
-	source "drivers/video/msm/mdss/Kconfig"
+#DTS2014120300339 modify by x00267953 2014-11-03 for LCD ?a?? begin
+	#source "drivers/video/msm/mdss/Kconfig"
+	source "drivers/video/msm/mdss_pad/Kconfig"
+#DTS2014120300339 modify by x00267953 2014-11-03 for LCD ?a?? end
 endif
 endif

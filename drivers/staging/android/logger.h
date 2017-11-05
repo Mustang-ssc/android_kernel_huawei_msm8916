@@ -74,7 +74,25 @@ struct logger_entry {
 #define LOGGER_LOG_EVENTS	"log_events"	/* system/hardware events */
 #define LOGGER_LOG_SYSTEM	"log_system"	/* system/framework messages */
 #define LOGGER_LOG_MAIN		"log_main"	/* everything else */
-
+/* < DTS2014050806287 wuzhihui 20140518 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+#define LOGGER_LOG_EXCEPTION    "log_exception" /* exception */
+#endif
+/* DTS2014050806287 wuzhihui 20140518 end > */
+/*< DTS2014061200428 Wuzhen/w00213434 20140612 begin */
+#ifdef CONFIG_LOG_JANK
+#define LOGGER_LOG_JANK "log_jank"  /* dev/log/jank */
+#endif 
+/*DTS2014061200428 Wuzhen/w00213434 20140612 end > */
+/* <DTS2014052007049 zhongming 20140521 begin */
+/* <DTS2013062905282 guohui 20130629 begin */
+#if defined(CONFIG_HUAWEI_KERNEL)
+/*<qindiwen 106479 20130607 begin */
+#define LOGGER_LOG_POWER	"smart_power"	/* dev/smart/power */
+/* qindiwen 106479 20130607 end>*/
+#endif
+/* DTS2013062905282 guohui 20130629 end> */
+/* DTS2014052007049 zhongming 20140521 end> */
 #define LOGGER_ENTRY_MAX_PAYLOAD	4076
 
 #define __LOGGERIO	0xAE

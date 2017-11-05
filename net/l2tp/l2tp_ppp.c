@@ -754,10 +754,9 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	session->deref = pppol2tp_session_sock_put;
 
 	/* If PMTU discovery was enabled, use the MTU that was discovered */
-	dst = sk_dst_get(tunnel->sock);
+	dst = sk_dst_get(sk);
 	if (dst != NULL) {
-		u32 pmtu = dst_mtu(dst);
-
+		u32 pmtu = dst_mtu(__sk_dst_get(sk));
 		if (pmtu != 0)
 			session->mtu = session->mru = pmtu -
 				PPPOL2TP_HEADER_OVERHEAD;
@@ -1364,9 +1363,11 @@ static int pppol2tp_setsockopt(struct socket *sock, int level, int optname,
 	struct pppol2tp_session *ps;
 	int val;
 	int err;
-
+    
+    /* BEGIN PN:DTS2014072802266 ,modified by z00183245,2014/08/09*/
 	if (level != SOL_PPPOL2TP)
 		return -EINVAL;
+    /* END PN:DTS2014072802266 ,modified by z00183245,2014/08/09*/
 
 	if (optlen < sizeof(int))
 		return -EINVAL;
@@ -1491,8 +1492,10 @@ static int pppol2tp_getsockopt(struct socket *sock, int level, int optname,
 	int err;
 	struct pppol2tp_session *ps;
 
+    /* BEGIN PN:DTS2014072802266 ,modified by z00183245,2014/08/09*/
 	if (level != SOL_PPPOL2TP)
 		return -EINVAL;
+    /* END PN:DTS2014072802266 ,modified by z00183245,2014/08/09*/
 
 	if (get_user(len, optlen))
 		return -EFAULT;
@@ -1576,7 +1579,7 @@ static void pppol2tp_next_tunnel(struct net *net, struct pppol2tp_seq_data *pd)
 
 static void pppol2tp_next_session(struct net *net, struct pppol2tp_seq_data *pd)
 {
-	pd->session = l2tp_session_get_nth(pd->tunnel, pd->session_idx, true);
+	pd->session = l2tp_session_find_nth(pd->tunnel, pd->session_idx);
 	pd->session_idx++;
 
 	if (pd->session == NULL) {
@@ -1703,14 +1706,10 @@ static int pppol2tp_seq_show(struct seq_file *m, void *v)
 
 	/* Show the tunnel or session context.
 	 */
-	if (!pd->session) {
+	if (pd->session == NULL)
 		pppol2tp_seq_tunnel_show(m, pd->tunnel);
-	} else {
+	else
 		pppol2tp_seq_session_show(m, pd->session);
-		if (pd->session->deref)
-			pd->session->deref(pd->session);
-		l2tp_session_dec_refcount(pd->session);
-	}
 
 out:
 	return 0;

@@ -50,11 +50,17 @@ struct msm_rpm_log_buffer {
 	char *data;
 	u32 len;
 	u32 pos;
-	struct mutex mutex;
 	u32 max_len;
 	u32 read_idx;
 	struct msm_rpm_log_platform_data *pdata;
 };
+
+/* <DTS2014042504598 xufeng 20140425 begin */
+/*record the sleeplog service runing or not*/
+#ifdef CONFIG_HUAWEI_KERNEL
+static u64 sleeplog_en = 0;
+#endif
+/* DTS2014042504598 xufeng 20140425 end> */
 
 /******************************************************************************
  * Internal functions
@@ -217,7 +223,6 @@ static ssize_t msm_rpm_log_file_read(struct file *file, char __user *bufu,
 	if (!access_ok(VERIFY_WRITE, bufu, count))
 		return -EFAULT;
 
-	mutex_lock(&buf->mutex);
 	/* check for more messages if local buffer empty */
 	if (buf->pos == buf->len) {
 		buf->pos = 0;
@@ -225,25 +230,29 @@ static ssize_t msm_rpm_log_file_read(struct file *file, char __user *bufu,
 						&(buf->read_idx));
 	}
 
-	if ((file->f_flags & O_NONBLOCK) && buf->len == 0) {
-		mutex_unlock(&buf->mutex);
+	if ((file->f_flags & O_NONBLOCK) && buf->len == 0)
 		return -EAGAIN;
-	}
 
-	/* loop until new messages arrive */
-	while (buf->len == 0) {
-		cond_resched();
-		if (msleep_interruptible(RECHECK_TIME))
-			break;
-		buf->len = msm_rpm_log_copy(pdata, buf->data, buf->max_len,
+	/* <DTS2014042504598 xufeng 20140425 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+    /*if sleep log service is not runing, loop wait for new message*/
+	if (0 == sleeplog_en)
+	{
+		/* loop until new messages arrive */
+		while (buf->len == 0) {
+			cond_resched();
+			if (msleep_interruptible(RECHECK_TIME))
+				break;
+			buf->len = msm_rpm_log_copy(pdata, buf->data, buf->max_len,
 						&(buf->read_idx));
+		}
 	}
-
+#endif
+	/* DTS2014042504598 xufeng 20140425 end> */
 	out_len = ((buf->len - buf->pos) < count ? buf->len - buf->pos : count);
 
 	remaining = __copy_to_user(bufu, &(buf->data[buf->pos]), out_len);
 	buf->pos += out_len - remaining;
-	mutex_unlock(&buf->mutex);
 
 	return out_len - remaining;
 }
@@ -290,7 +299,6 @@ static int msm_rpm_log_file_open(struct inode *inode, struct file *file)
 	buf->pdata = pdata;
 	buf->len = 0;
 	buf->pos = 0;
-	mutex_init(&buf->mutex);
 	buf->max_len = PRINTED_LENGTH(pdata->log_len);
 	buf->read_idx = msm_rpm_log_read(pdata, MSM_RPM_LOG_PAGE_INDICES,
 					 MSM_RPM_LOG_HEAD);
@@ -312,18 +320,44 @@ static const struct file_operations msm_rpm_log_file_fops = {
 	.release = msm_rpm_log_file_close,
 };
 
+/* <DTS2014042504598 xufeng 20140425 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+static int sleep_log_enable_get(void *data, u64 *val)
+{
+	if (IS_ERR(data) || data == NULL) {
+		pr_err("Function Input Error %ld\n", PTR_ERR(data));
+		return -ENOMEM;
+	}
+
+	*val = sleeplog_en;
+	return 0;
+}
+
+static int sleep_log_enable_set(void *data, u64 val)
+{
+	if (IS_ERR(data) || data == NULL) {
+		pr_err("Function Input Error %ld\n", PTR_ERR(data));
+		return -ENOMEM;
+	}
+
+	sleeplog_en = val;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(sleep_log_en_fops, sleep_log_enable_get,
+			sleep_log_enable_set, "%llu\n");
+#endif
+/* DTS2014042504598 xufeng 20140425 end> */
 static int msm_rpm_log_probe(struct platform_device *pdev)
 {
 	struct dentry *dent;
 	struct msm_rpm_log_platform_data *pdata;
-	struct resource *res = NULL, *offset = NULL;
+	struct resource *res = NULL;
 	struct device_node *node = NULL;
 	phys_addr_t page_buffer_address, rpm_addr_phys;
 	int ret = 0;
 	char *key = NULL;
 	uint32_t val = 0;
-	uint32_t offset_addr = 0;
-	void __iomem *phys_ptr = NULL;
 
 	node = pdev->dev.of_node;
 
@@ -335,25 +369,11 @@ static int msm_rpm_log_probe(struct platform_device *pdev)
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (!res) {
-			pr_err("%s: could not get resource\n", __func__);
 			kfree(pdata);
 			return -EINVAL;
 		}
 
-		offset = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (offset) {
-			/* Remap the rpm-log pointer */
-			phys_ptr = ioremap_nocache(offset->start, SZ_4);
-			if (!phys_ptr) {
-				pr_err("%s: Failed to ioremap address: %x\n",
-						__func__, offset_addr);
-				return -ENODEV;
-			}
-			offset_addr = readl_relaxed(phys_ptr);
-			iounmap(phys_ptr);
-		}
-
-		pdata->phys_addr_base = res->start + offset_addr;
+		pdata->phys_addr_base = res->start;
 		pdata->phys_size = resource_size(res);
 
 		pdata->reg_base = ioremap_nocache(pdata->phys_addr_base,
@@ -486,6 +506,13 @@ static int msm_rpm_log_probe(struct platform_device *pdev)
 		}
 		return -ENOMEM;
 	}
+	/* <DTS2014042504598 xufeng 20140425 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+	/*add a node which can be write variable sleeplog_en*/
+	debugfs_create_file("sleep_log_en", S_IRUSR | S_IWUSR,
+					NULL, (void *)"sleep_log_en", &sleep_log_en_fops);
+#endif
+	/* DTS2014042504598 xufeng 20140425 end> */
 
 	platform_set_drvdata(pdev, dent);
 

@@ -48,3 +48,14 @@ const char linux_proc_banner[] =
 	"%s version %s"
 	" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
 	" (" LINUX_COMPILER ") %s\n";
+
+/* < DTS2014071201040 wuzhen/00213434 yuanxiaofeng/278246 20140711 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+#ifndef HIDE_PRODUCT_INFO_KERNEL
+const char hide_version[] =
+    "%s version %s"
+    " (android@localhost)"
+    " (" LINUX_COMPILER ") %s\n";
+#endif
+#endif
+/* DTS2014071201040 wuzhen/00213434 yuanxiaofeng/278246 20140711 end > */

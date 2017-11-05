@@ -479,6 +479,20 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 		goto out;
 	}
 
+    /* < DTS2014091105439 chenxi 20140911 begin */
+    /*
+     * curlun->blksize remains the old value when switch from cdrom to udisk
+     * so use the same blksie in cdrom and udisk
+     */
+#ifdef CONFIG_HUAWEI_USB
+	if (inode->i_bdev) {
+		blksize = bdev_logical_block_size(inode->i_bdev);
+		blkbits = blksize_bits(blksize);
+	} else {
+		blksize = 512;
+		blkbits = 9;
+	}
+#else
 	if (curlun->cdrom) {
 		blksize = 2048;
 		blkbits = 11;
@@ -489,9 +503,14 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 		blksize = 512;
 		blkbits = 9;
 	}
+#endif
+    /* DTS2014091105439 chenxi 20140911 end > */
 
 	num_sectors = size >> blkbits; /* File size in logic-block-size blocks */
 	min_sectors = 1;
+
+    /* < DTS2014091105439 chenxi 20140911 begin */
+#ifndef CONFIG_HUAWEI_USB
 	if (curlun->cdrom) {
 		min_sectors = 300;	/* Smallest track is 300 frames */
 		if (num_sectors >= 256*60*75) {
@@ -501,6 +520,9 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 					(int) num_sectors);
 		}
 	}
+#endif
+    /* DTS2014091105439 chenxi 20140911 end > */
+
 	if (num_sectors < min_sectors) {
 		LINFO(curlun, "file too small: %s\n", filename);
 		rc = -ETOOSMALL;
@@ -523,8 +545,18 @@ out:
 	fput(filp);
 	return rc;
 }
-
-
+ /* < DTS2014120402917 yesiping 20141205 begin */
+ /* < DTS2014101506332 yesiping 20141120 begin */
+static struct file *cdrom_filp = NULL;
+static void fsg_lun_cdrom_close(struct fsg_lun *curlun)
+{
+	if (curlun->filp) {
+		cdrom_filp = curlun->filp;
+		LDBG(curlun, "close backing file\n");
+		curlun->filp = NULL;
+	}
+}
+ /* DTS2014101506332 yesiping 20141120 end > */
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -578,14 +610,6 @@ static ssize_t fsg_show_nofua(struct device *dev, struct device_attribute *attr,
 	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
 
 	return sprintf(buf, "%u\n", curlun->nofua);
-}
-
-static ssize_t fsg_show_cdrom (struct device *dev, struct device_attribute *attr,
-			   char *buf)
-{
-	struct fsg_lun  *curlun = fsg_lun_from_dev(dev);
-
-	return sprintf(buf, "%d\n", curlun->cdrom);
 }
 
 #ifdef CONFIG_USB_MSC_PROFILING
@@ -713,6 +737,15 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
 	struct rw_semaphore	*filesem = dev_get_drvdata(dev);
 	int		rc = 0;
+    
+    /* < DTS2014091105439 chenxi 20140911 begin */
+    /* < DTS2014050804174 wanghui 20140523 begin */
+    /* for easy to debug ,add a log here */
+#ifdef CONFIG_HUAWEI_USB
+    printk("%s: %s buf = %s\n", __func__, dev_name(dev), buf); 
+#endif
+    /* DTS2014050804174 wanghui 20140523 end > */
+    /* DTS2014091105439 chenxi 20140911 end > */
 
 
 #if !defined(CONFIG_USB_G_ANDROID)
@@ -731,6 +764,28 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 
 	/* Load new medium */
 	down_write(filesem);
+/* < DTS2014091105439 chenxi 20140911 begin */
+#ifdef CONFIG_HUAWEI_USB
+    /* < DTS2014101506332 yesiping 20141120 begin */
+	if(cdrom_filp) {
+		fput(cdrom_filp);
+		cdrom_filp = NULL;
+	}
+    /*  DTS2014101506332 yesiping 20141120 end >*/
+	/*  DTS2014120402917 yesiping 20141205 end >*/
+    if(curlun->cdrom && fsg_lun_is_open(curlun)) {
+        printk("%s: is cdrom and already opened, ignore\n", __func__);
+	}else if (count > 0 && buf[0]) {
+		/* fsg_lun_open() will close existing file if any. */
+		rc = fsg_lun_open(curlun, buf);
+		if (rc == 0)
+			curlun->unit_attention_data =
+					SS_NOT_READY_TO_READY_TRANSITION;
+	} else if (fsg_lun_is_open(curlun)) {
+		fsg_lun_close(curlun);
+		curlun->unit_attention_data = SS_MEDIUM_NOT_PRESENT;
+	}
+#else
 	if (count > 0 && buf[0]) {
 		/* fsg_lun_open() will close existing file if any. */
 		rc = fsg_lun_open(curlun, buf);
@@ -741,35 +796,8 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 		fsg_lun_close(curlun);
 		curlun->unit_attention_data = SS_MEDIUM_NOT_PRESENT;
 	}
+#endif
+/* DTS2014091105439 chenxi 20140911 end > */
 	up_write(filesem);
 	return (rc < 0 ? rc : count);
-}
-
-static ssize_t fsg_store_cdrom(struct device *dev, struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	ssize_t    rc;
-	struct fsg_lun  *curlun = fsg_lun_from_dev(dev);
-	struct rw_semaphore  *filesem = dev_get_drvdata(dev);
-	unsigned  cdrom;
-
-	rc = kstrtouint(buf, 2, &cdrom);
-	if (rc)
-		return rc;
-
-	/*
-	 * Allow the cdrom status to change only while the
-	 * backing file is closed.
-	 */
-	down_read(filesem);
-	if (fsg_lun_is_open(curlun)) {
-		LDBG(curlun, "cdrom status change prevented\n");
-		rc = -EBUSY;
-	} else {
-		curlun->cdrom = cdrom;
-		LDBG(curlun, "cdrom status set to %d\n", curlun->cdrom);
-		rc = count;
-	}
-	up_read(filesem);
-	return rc;
 }

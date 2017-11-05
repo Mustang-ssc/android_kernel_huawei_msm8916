@@ -293,12 +293,12 @@ static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	char *s = buf;
 #ifdef CONFIG_SUSPEND
-	suspend_state_t i;
+	int i;
 
-	for (i = PM_SUSPEND_MIN; i < PM_SUSPEND_MAX; i++)
-		if (pm_states[i].state)
-			s += sprintf(s,"%s ", pm_states[i].label);
-
+	for (i = 0; i < PM_SUSPEND_MAX; i++) {
+		if (pm_states[i] && valid_state(i))
+			s += sprintf(s,"%s ", pm_states[i]);
+	}
 #endif
 #ifdef CONFIG_HIBERNATION
 	s += sprintf(s, "%s\n", "disk");
@@ -314,7 +314,7 @@ static suspend_state_t decode_state(const char *buf, size_t n)
 {
 #ifdef CONFIG_SUSPEND
 	suspend_state_t state = PM_SUSPEND_MIN;
-	struct pm_sleep_state *s;
+	const char * const *s;
 #endif
 	char *p;
 	int len;
@@ -328,9 +328,8 @@ static suspend_state_t decode_state(const char *buf, size_t n)
 
 #ifdef CONFIG_SUSPEND
 	for (s = &pm_states[state]; state < PM_SUSPEND_MAX; s++, state++)
-		if (s->state && len == strlen(s->label)
-		    && !strncmp(buf, s->label, len))
-			return s->state;
+		if (*s && len == strlen(*s) && !strncmp(buf, *s, len))
+			return state;
 #endif
 
 	return PM_SUSPEND_ON;
@@ -446,8 +445,8 @@ static ssize_t autosleep_show(struct kobject *kobj,
 
 #ifdef CONFIG_SUSPEND
 	if (state < PM_SUSPEND_MAX)
-		return sprintf(buf, "%s\n", pm_states[state].state ?
-					pm_states[state].label : "error");
+		return sprintf(buf, "%s\n", valid_state(state) ?
+						pm_states[state] : "error");
 #endif
 #ifdef CONFIG_HIBERNATION
 	return sprintf(buf, "disk\n");
@@ -624,12 +623,28 @@ static int __init pm_start_workqueue(void)
 #else
 static inline int pm_start_workqueue(void) { return 0; }
 #endif
-
+/* < DTS2014061303901 zhaoyingchun 20140625 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+extern struct completion suspend_sys_sync_comp;
+extern struct workqueue_struct *suspend_sys_sync_work_queue;
+#endif
+/* DTS2014061303901 zhaoyingchun 20140625 end > */
 static int __init pm_init(void)
 {
 	int error = pm_start_workqueue();
 	if (error)
 		return error;
+/* < DTS2014061303901 zhaoyingchun 20140625 begin */
+#ifdef CONFIG_HUAWEI_KERNEL	
+	init_completion(&suspend_sys_sync_comp);
+	suspend_sys_sync_work_queue =
+		create_singlethread_workqueue("suspend_sys_sync");
+	if (suspend_sys_sync_work_queue == NULL) {
+		error = -ENOMEM;
+		return error;
+	}	
+#endif
+/* DTS2014061303901 zhaoyingchun 20140625 end > */
 	hibernate_image_size_init();
 	hibernate_reserved_size_init();
 	power_kobj = kobject_create_and_add("power", NULL);

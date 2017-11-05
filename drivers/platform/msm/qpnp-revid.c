@@ -15,6 +15,11 @@
 #include <linux/spmi.h>
 #include <linux/err.h>
 #include <linux/qpnp-revid.h>
+/* <DTS2014042508852 zhaoxiaoli 20140425 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+#include <misc/app_info.h>
+#endif
+/* DTS2014042508852 zhaoxiaoli 20140425 end> */
 
 #define REVID_REVISION1	0x0
 #define REVID_REVISION2	0x1
@@ -36,11 +41,9 @@ static const char *const pmic_names[] = {
 	"PMA8084",
 	"PMI8962",
 	"PMD9635",
-	"PM8994",
-	"PMI8994",
+	"PMPlutonium",
+	"PMIPlutonium",
 	"PM8916",
-	"PM8004",
-	"PM8909",
 };
 
 struct revid_chip {
@@ -186,6 +189,11 @@ static int qpnp_revid_probe(struct spmi_device *spmi)
 			pmic_subtype, rev1, rev2, rev3, rev4);
 	pr_info("%s options: %d, %d, %d, %d\n",
 			pmic_string, option1, option2, option3, option4);
+	/* <DTS2014042508852 zhaoxiaoli 20140425 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+	app_info_set("pmic_version", pmic_string);
+#endif
+	/* DTS2014042508852 zhaoxiaoli 20140425 end> */
 	return 0;
 }
 

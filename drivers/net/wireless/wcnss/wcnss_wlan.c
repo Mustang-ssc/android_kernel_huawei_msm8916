@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -43,8 +43,10 @@
 
 #include <soc/qcom/smd.h>
 
-#ifdef CONFIG_MACH_HUAWEI
-#include <linux/config_interface.h>
+#include <mach/msm_iomap.h>
+
+#ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
+#include "wcnss_prealloc.h"
 #endif
 
 #define DEVICE "wcnss_wlan"
@@ -59,12 +61,22 @@
 #define WCNSS_DISABLE_PC_LATENCY	100
 #define WCNSS_ENABLE_PC_LATENCY	PM_QOS_DEFAULT_VALUE
 #define WCNSS_PM_QOS_TIMEOUT	15000
-#define IS_CAL_DATA_PRESENT     0
-#define WAIT_FOR_CBC_IND	2
 
 /* module params */
 #define WCNSS_CONFIG_UNSPECIFIED (-1)
 #define UINT32_MAX (0xFFFFFFFFU)
+
+/* < DTS2014112807052 liujie/214426 integrate DTS2014072505106 begin*/
+#ifdef CONFIG_HUAWEI_WIFI
+
+
+int wlan_log_debug_mask = WLAN_ERROR;
+module_param_named(wlan_log_debug_mask, wlan_log_debug_mask, int, 0664);
+EXPORT_SYMBOL(wlan_log_debug_mask);
+
+
+#endif
+/* DTS2014112807052 liujie/214426 integrate DTS2014072505106 end > */
 
 static int has_48mhz_xo = WCNSS_CONFIG_UNSPECIFIED;
 module_param(has_48mhz_xo, int, S_IWUSR | S_IRUGO);
@@ -127,12 +139,6 @@ static DEFINE_SPINLOCK(reg_spinlock);
 #define A2XB_TSTBUS_CTRL_OFFSET		0x14
 #define A2XB_TSTBUS_OFFSET			0x18
 #define A2XB_ERR_INFO_OFFSET		0x1c
-#define A2XB_FIFO_FILL_OFFSET		0x07
-#define A2XB_READ_FIFO_FILL_MASK		0x3F
-#define A2XB_CMD_FIFO_FILL_MASK			0x0F
-#define A2XB_WRITE_FIFO_FILL_MASK		0x1F
-#define A2XB_FIFO_EMPTY			0x2
-#define A2XB_FIFO_COUNTER			0xA
 
 #define WCNSS_TSTBUS_CTRL_EN		BIT(0)
 #define WCNSS_TSTBUS_CTRL_AXIM		(0x02 << 1)
@@ -149,11 +155,6 @@ static DEFINE_SPINLOCK(reg_spinlock);
 #define CCU_PRONTO_LAST_ADDR0_OFFSET		0x0c
 #define CCU_PRONTO_LAST_ADDR1_OFFSET		0x10
 #define CCU_PRONTO_LAST_ADDR2_OFFSET		0x14
-
-#define CCU_PRONTO_AOWBR_ERR_ADDR_OFFSET	0x28
-#define CCU_PRONTO_AOWBR_TIMEOUT_REG_OFFSET	0xcc
-#define CCU_PRONTO_AOWBR_ERR_TIMEOUT_OFFSET	0xd0
-#define CCU_PRONTO_A2AB_ERR_ADDR_OFFSET		0x18
 
 #define PRONTO_SAW2_SPM_STS_OFFSET		0x0c
 
@@ -175,6 +176,10 @@ static DEFINE_SPINLOCK(reg_spinlock);
 #define MCU_FDBR_FDAHB_TIMEOUT_OFFSET		0x3ac
 
 #define WCNSS_DEF_WLAN_RX_BUFF_COUNT		1024
+#define WCNSS_VBATT_THRESHOLD		3500000
+#define WCNSS_VBATT_GUARD		200
+#define WCNSS_VBATT_HIGH		3700000
+#define WCNSS_VBATT_LOW			3300000
 
 #define WCNSS_CTRL_CHANNEL			"WCNSS_CTRL"
 #define WCNSS_MAX_FRAME_SIZE		(4*1024)
@@ -205,9 +210,7 @@ static DEFINE_SPINLOCK(reg_spinlock);
 #define	WCNSS_VBATT_LEVEL_IND         (WCNSS_CTRL_MSG_START + 8)
 #define	WCNSS_BUILD_VER_REQ           (WCNSS_CTRL_MSG_START + 9)
 #define	WCNSS_BUILD_VER_RSP           (WCNSS_CTRL_MSG_START + 10)
-#define	WCNSS_PM_CONFIG_REQ           (WCNSS_CTRL_MSG_START + 11)
 #define WCNSS_CBC_COMPLETE_IND		(WCNSS_CTRL_MSG_START + 12)
-
 /* max 20mhz channel count */
 #define WCNSS_MAX_CH_NUM			45
 #define WCNSS_MAX_PIL_RETRY			2
@@ -248,14 +251,31 @@ static struct wcnss_pmic_dump wcnss_pmic_reg_dump[] = {
 	{"LVS1", 0x060},
 };
 
+/* < DTS2014042406542 chenjikun 20140424 begin */
+/* < DTS2014041008275 chenjikun 20140410 begin */
+#ifdef CONFIG_HUAWEI_WIFI
+#define HW_NVBIN_FILE "wlan/prima/WCNSS_hw_wlan_nv.bin"
+#define NVBIN_FILE_3660B "wlan/prima/WCNSS_hw_wlan_nv_3660b.bin"
+#define WLAN_CHIP_QUALCOMM_WCN3660B   "2.4"
+#define WLAN_MAX_CONF_INFO_LEN 128
+#define QUALCOMM_WCN_CALDATA_FORMAT    "../wifi/WCNSS_hw_wlan_nv"
+extern char *get_wifi_device_type(void);
+const void *get_hw_wifi_pubfile_id(void);
+#endif
 static int wcnss_notif_cb(struct notifier_block *this, unsigned long code,
 				void *ss_handle);
 
 static struct notifier_block wnb = {
 	.notifier_call = wcnss_notif_cb,
 };
-
+/*  hwx239867 20141203 add begin */
+#ifdef CONFIG_HUAWEI_WIFI
+#define NVBIN_FILE "wlan/prima/WCNSS_hw_wlan_nv.bin"
+#else
 #define NVBIN_FILE "wlan/prima/WCNSS_qcom_wlan_nv.bin"
+#endif
+/*  hwx239867 20141203 add begin */
+/* DTS2014042406542 chenjikun 20140424 end > */
 
 /* On SMD channel 4K of maximum data can be transferred, including message
  * header, so NV fragment size as next multiple of 1Kb is 3Kb.
@@ -374,10 +394,8 @@ static struct {
 	struct delayed_work wcnss_work;
 	struct delayed_work vbatt_work;
 	struct work_struct wcnssctrl_version_work;
-	struct work_struct wcnss_pm_config_work;
 	struct work_struct wcnssctrl_nvbin_dnld_work;
 	struct work_struct wcnssctrl_rx_work;
-	struct work_struct wcnss_vadc_work;
 	struct wake_lock wcnss_wake_lock;
 	void __iomem *msm_wcnss_base;
 	void __iomem *riva_ccu_base;
@@ -402,7 +420,8 @@ static struct {
 	int	user_cal_read;
 	int	user_cal_available;
 	u32	user_cal_rcvd;
-	u32	user_cal_exp_size;
+	int	user_cal_exp_size;
+	int	device_opened;
 	int	iris_xo_mode_set;
 	int	fw_vbatt_state;
 	char	wlan_nv_macAddr[WLAN_MAC_ADDR_SIZE];
@@ -412,7 +431,6 @@ static struct {
 	wait_queue_head_t read_wait;
 	struct qpnp_adc_tm_btm_param vbat_monitor_params;
 	struct qpnp_adc_tm_chip *adc_tm_dev;
-	struct qpnp_vadc_chip *vadc_dev;
 	struct mutex vbat_monitor_mutex;
 	u16 unsafe_ch_count;
 	u16 unsafe_ch_list[WCNSS_MAX_CH_NUM];
@@ -427,8 +445,107 @@ static struct {
 	struct pm_qos_request wcnss_pm_qos_request;
 	int pc_disabled;
 	struct delayed_work wcnss_pm_qos_del_req;
-	struct mutex pm_qos_mutex;
 } *penv = NULL;
+
+/* < DTS2014112702834 chenjikun 20141127 begin */
+#ifdef CONFIG_HUAWEI_DSM
+static struct dsm_dev wifi_dsm_info = {
+    .name = DSM_WIFI_MOD_NAME,
+    .fops = NULL,
+    .buff_size = DSM_WIFI_BUF_SIZE,
+};
+
+static struct dsm_client *wifi_dclient = NULL;
+
+int wifi_dsm_register(void)
+{
+    if (NULL != wifi_dclient)
+    {
+        printk(KERN_INFO "wifi_dclient had been register!\n");
+        return 0;
+    }
+
+    wifi_dclient = dsm_register_client(&wifi_dsm_info);
+    if(NULL == wifi_dclient)
+    {
+        printk(KERN_ERR "wifi_dclient register failed!\n");
+    }
+
+    return 0;
+}
+EXPORT_SYMBOL(wifi_dsm_register);
+
+int wifi_dsm_report_num(int dsm_err_no, char *err_msg, int err_code)
+{
+    int err = 0;
+
+    if(NULL == wifi_dclient)
+    {
+        printk(KERN_ERR "%s wifi_dclient did not register!\n", __func__);
+        return 0;
+    }
+
+    err = dsm_client_ocuppy(wifi_dclient);
+    if(0 != err)
+    {
+        printk(KERN_ERR "%s user buffer is busy!\n", __func__);
+        return 0;
+    }
+
+    printk(KERN_ERR "%s user buffer apply successed, dsm_err_no=%d, err_code=%d!\n",
+        __func__, dsm_err_no, err_code);
+
+    err = dsm_client_record(wifi_dclient, "err_msg:%s;err_code:%d;\n",err_msg,err_code);
+    dsm_client_notify(wifi_dclient, dsm_err_no);
+
+    return 0;
+}
+EXPORT_SYMBOL(wifi_dsm_report_num);
+
+int wifi_dsm_report_info(int error_no, void *log, int size)
+{
+    int err = 0;
+    int rsize = 0;
+
+    if(NULL == wifi_dclient)
+    {
+        printk(KERN_ERR "%s wifi_dclient did not register!\n", __func__);
+        return 0;
+    }
+
+    if((error_no < DSM_WIFI_ERR) || (error_no > DSM_WIFI_ROOT_NOT_RIGHT_ERR) || (NULL == log) || (size < 0))
+    {
+        printk(KERN_ERR "%s input param error!\n", __func__);
+        return 0;
+    }
+
+    err = dsm_client_ocuppy(wifi_dclient);
+    if(0 != err)
+    {
+        printk(KERN_ERR "%s user buffer is busy!\n", __func__);
+        return 0;
+    }
+
+    if(size > DSM_WIFI_BUF_SIZE)
+    {
+        rsize = DSM_WIFI_BUF_SIZE;
+    }
+    else
+    {
+        rsize = size;
+    }
+    err = dsm_client_copy(wifi_dclient, log, rsize);
+
+    dsm_client_notify(wifi_dclient, error_no);
+
+    return 0;
+}
+EXPORT_SYMBOL(wifi_dsm_report_info);
+/* < DTS2015012008374 liujie/214426 begin */
+/*delete dsm related definition outside the CONFIG_HUAWEI_DSM macro*/
+/* DTS2015012008374 liujie/214426 end > */
+#endif
+/* DTS2014112702834 chenjikun 20141127 end > */
 
 static ssize_t wcnss_wlan_macaddr_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -591,30 +708,6 @@ void wcnss_riva_log_debug_regs(void)
 }
 EXPORT_SYMBOL(wcnss_riva_log_debug_regs);
 
-void wcnss_pronto_is_a2xb_bus_stall(void *tst_addr, u32 fifo_mask, char *type)
-{
-	u32 iter = 0, reg = 0;
-	u32 axi_fifo_count = 0, axi_fifo_count_last = 0;
-
-	reg = readl_relaxed(tst_addr);
-	axi_fifo_count = (reg >> A2XB_FIFO_FILL_OFFSET) & fifo_mask;
-	while ((++iter < A2XB_FIFO_COUNTER) && axi_fifo_count) {
-		axi_fifo_count_last = axi_fifo_count;
-		reg = readl_relaxed(tst_addr);
-		axi_fifo_count = (reg >> A2XB_FIFO_FILL_OFFSET) & fifo_mask;
-		if (axi_fifo_count < axi_fifo_count_last)
-			break;
-	}
-
-	if (iter == A2XB_FIFO_COUNTER) {
-		pr_err("%s data FIFO testbus possibly stalled reg%08x\n",
-				type, reg);
-	} else {
-		pr_err("%s data FIFO tstbus not stalled reg%08x\n",
-				type, reg);
-	}
-}
-
 /* Log pronto debug registers before sending reset interrupt */
 void wcnss_pronto_log_debug_regs(void)
 {
@@ -704,22 +797,6 @@ void wcnss_pronto_log_debug_regs(void)
 	reg = readl_relaxed(reg_addr);
 	pr_err("CCU_CCPU_LAST_ADDR2 %08x\n", reg);
 
-	reg_addr = penv->pronto_ccpu_base + CCU_PRONTO_AOWBR_ERR_ADDR_OFFSET;
-	reg = readl_relaxed(reg_addr);
-	pr_err("CCU_PRONTO_AOWBR_ERR_ADDR_OFFSET %08x\n", reg);
-
-	reg_addr = penv->pronto_ccpu_base + CCU_PRONTO_AOWBR_TIMEOUT_REG_OFFSET;
-	reg = readl_relaxed(reg_addr);
-	pr_err("CCU_PRONTO_AOWBR_TIMEOUT_REG_OFFSET %08x\n", reg);
-
-	reg_addr = penv->pronto_ccpu_base + CCU_PRONTO_AOWBR_ERR_TIMEOUT_OFFSET;
-	reg = readl_relaxed(reg_addr);
-	pr_err("CCU_PRONTO_AOWBR_ERR_TIMEOUT_OFFSET %08x\n", reg);
-
-	reg_addr = penv->pronto_ccpu_base + CCU_PRONTO_A2AB_ERR_ADDR_OFFSET;
-	reg = readl_relaxed(reg_addr);
-	pr_err("CCU_PRONTO_A2AB_ERR_ADDR_OFFSET %08x\n", reg);
-
 	tst_addr = penv->pronto_a2xb_base + A2XB_TSTBUS_OFFSET;
 	tst_ctrl_addr = penv->pronto_a2xb_base + A2XB_TSTBUS_CTRL_OFFSET;
 
@@ -728,36 +805,21 @@ void wcnss_pronto_log_debug_regs(void)
 	reg = reg | WCNSS_TSTBUS_CTRL_EN | WCNSS_TSTBUS_CTRL_RDFIFO;
 	writel_relaxed(reg, tst_ctrl_addr);
 	reg = readl_relaxed(tst_addr);
-	if (!(reg & A2XB_FIFO_EMPTY)) {
-		wcnss_pronto_is_a2xb_bus_stall(tst_addr,
-			       A2XB_READ_FIFO_FILL_MASK, "Read");
-	} else {
-		pr_err("Read data FIFO testbus %08x\n", reg);
-	}
+	pr_err("Read data FIFO testbus %08x\n", reg);
+
 	/*  command FIFO */
 	reg = 0;
 	reg = reg | WCNSS_TSTBUS_CTRL_EN | WCNSS_TSTBUS_CTRL_CMDFIFO;
 	writel_relaxed(reg, tst_ctrl_addr);
 	reg = readl_relaxed(tst_addr);
-	if (!(reg & A2XB_FIFO_EMPTY)) {
-		wcnss_pronto_is_a2xb_bus_stall(tst_addr,
-			       A2XB_CMD_FIFO_FILL_MASK, "Cmd");
-	} else {
-		pr_err("Command FIFO testbus %08x\n", reg);
-	}
-
+	pr_err("Command FIFO testbus %08x\n", reg);
 
 	/*  write data FIFO */
 	reg = 0;
 	reg = reg | WCNSS_TSTBUS_CTRL_EN | WCNSS_TSTBUS_CTRL_WRFIFO;
 	writel_relaxed(reg, tst_ctrl_addr);
 	reg = readl_relaxed(tst_addr);
-	if (!(reg & A2XB_FIFO_EMPTY)) {
-		wcnss_pronto_is_a2xb_bus_stall(tst_addr,
-				A2XB_WRITE_FIFO_FILL_MASK, "Write");
-	} else {
-		pr_err("Write data FIFO testbus %08x\n", reg);
-	}
+	pr_err("Rrite data FIFO testbus %08x\n", reg);
 
 	/*   AXIM SEL CFG0 */
 	reg = 0;
@@ -1054,21 +1116,6 @@ static void wcnss_log_iris_regs(void)
 	}
 }
 
-int wcnss_get_mux_control(void)
-{
-	void __iomem *pmu_conf_reg;
-	u32 reg = 0;
-
-	if (NULL == penv)
-		return 0;
-
-	pmu_conf_reg = penv->msm_wcnss_base + PRONTO_PMU_OFFSET;
-	reg = readl_relaxed(pmu_conf_reg);
-	reg |= WCNSS_PMU_CFG_GC_BUS_MUX_SEL_TOP;
-	writel_relaxed(reg, pmu_conf_reg);
-	return 1;
-}
-
 void wcnss_log_debug_regs_on_bite(void)
 {
 	struct platform_device *pdev = wcnss_get_platform_device();
@@ -1098,8 +1145,6 @@ void wcnss_log_debug_regs_on_bite(void)
 
 		if (clk_rate) {
 			wcnss_pronto_log_debug_regs();
-			if (wcnss_get_mux_control())
-				wcnss_log_iris_regs();
 		} else {
 			pr_err("clock frequency is zero, cannot access PMU or other registers\n");
 			wcnss_log_iris_regs();
@@ -1115,34 +1160,15 @@ void wcnss_reset_intr(void)
 {
 	if (wcnss_hardware_type() == WCNSS_PRONTO_HW) {
 		wcnss_pronto_log_debug_regs();
-		if (wcnss_get_mux_control())
-			wcnss_log_iris_regs();
 		wmb();
 		__raw_writel(1 << 16, penv->fiq_reg);
 	} else {
 		wcnss_riva_log_debug_regs();
+		wmb();
+		__raw_writel(1 << 24, MSM_APCS_GCC_BASE + 0x8);
 	}
 }
 EXPORT_SYMBOL(wcnss_reset_intr);
-
-void wcnss_reset_fiq(bool clk_chk_en)
-{
-	if (wcnss_hardware_type() == WCNSS_PRONTO_HW) {
-		if (clk_chk_en) {
-			wcnss_log_debug_regs_on_bite();
-		} else {
-			wcnss_pronto_log_debug_regs();
-			if (wcnss_get_mux_control())
-				wcnss_log_iris_regs();
-		}
-		/* Insert memory barrier before writing fiq register */
-		wmb();
-		__raw_writel(1 << 16, penv->fiq_reg);
-	} else {
-		wcnss_riva_log_debug_regs();
-	}
-}
-EXPORT_SYMBOL(wcnss_reset_fiq);
 
 static int wcnss_create_sysfs(struct device *dev)
 {
@@ -1191,45 +1217,41 @@ static void wcnss_remove_sysfs(struct device *dev)
 
 static void wcnss_pm_qos_add_request(void)
 {
-	pr_info("%s: add request\n", __func__);
+	pr_info("%s: add request", __func__);
 	pm_qos_add_request(&penv->wcnss_pm_qos_request, PM_QOS_CPU_DMA_LATENCY,
 			PM_QOS_DEFAULT_VALUE);
 }
 
 static void wcnss_pm_qos_remove_request(void)
 {
-	pr_info("%s: remove request\n", __func__);
+	pr_info("%s: remove request", __func__);
 	pm_qos_remove_request(&penv->wcnss_pm_qos_request);
 }
 
 void wcnss_pm_qos_update_request(int val)
 {
-	pr_info("%s: update request %d\n", __func__, val);
+	pr_info("%s: update request %d", __func__, val);
 	pm_qos_update_request(&penv->wcnss_pm_qos_request, val);
 }
 
 void wcnss_disable_pc_remove_req(void)
 {
-	mutex_lock(&penv->pm_qos_mutex);
 	if (penv->pc_disabled) {
-		penv->pc_disabled = 0;
 		wcnss_pm_qos_update_request(WCNSS_ENABLE_PC_LATENCY);
 		wcnss_pm_qos_remove_request();
 		wcnss_allow_suspend();
+		penv->pc_disabled = 0;
 	}
-	mutex_unlock(&penv->pm_qos_mutex);
 }
 
 void wcnss_disable_pc_add_req(void)
 {
-	mutex_lock(&penv->pm_qos_mutex);
 	if (!penv->pc_disabled) {
 		wcnss_pm_qos_add_request();
 		wcnss_prevent_suspend();
 		wcnss_pm_qos_update_request(WCNSS_DISABLE_PC_LATENCY);
 		penv->pc_disabled = 1;
 	}
-	mutex_unlock(&penv->pm_qos_mutex);
 }
 
 static void wcnss_smd_notify_event(void *data, unsigned int event)
@@ -1254,11 +1276,9 @@ static void wcnss_smd_notify_event(void *data, unsigned int event)
 		pr_debug("wcnss: opening WCNSS SMD channel :%s",
 				WCNSS_CTRL_CHANNEL);
 		schedule_work(&penv->wcnssctrl_version_work);
-		schedule_work(&penv->wcnss_pm_config_work);
 		cancel_delayed_work(&penv->wcnss_pm_qos_del_req);
 		schedule_delayed_work(&penv->wcnss_pm_qos_del_req, 0);
-		if (penv->wlan_config.is_pronto_v3 && (penv->vadc_dev))
-			schedule_work(&penv->wcnss_vadc_work);
+
 		break;
 
 	case SMD_EVENT_CLOSE:
@@ -1356,6 +1376,14 @@ wcnss_pronto_gpios_config(struct platform_device *pdev, bool enable)
 	int i, j;
 	int WCNSS_WLAN_NUM_GPIOS = 5;
 
+/* < DTS2014041008275 chenjikun 20140410 begin */
+/* < DTS2014112807052 liujie/214426 integrate DTS2014072505106 begin*/
+#ifdef CONFIG_HUAWEI_WIFI
+    wlan_log_err("wcnss: %s enter;\n", __func__);
+#endif
+/* DTS2014112807052 liujie/214426 integrate DTS2014072505106 end > */
+/* DTS2014041008275 chenjikun 20140410 end > */
+
 	/* Use Pinctrl to configure 5 wire GPIOs */
 	rc = wcnss_pinctrl_init(pdev);
 	if (rc) {
@@ -1384,6 +1412,14 @@ gpio_probe:
 		} else
 			gpio_free(gpio);
 	}
+
+/* < DTS2014041008275 chenjikun 20140410 begin */
+/* < DTS2014112807052 liujie/214426 integrate DTS2014072505106 begin*/
+#ifdef CONFIG_HUAWEI_WIFI
+	wlan_log_err("wcnss: %s exit,rc:%d;line:%d;\n", __func__,rc,__LINE__);
+#endif
+/* DTS2014112807052 liujie/214426 integrate DTS2014072505106 end > */
+/* DTS2014041008275 chenjikun 20140410 end > */
 	return rc;
 
 fail:
@@ -1391,6 +1427,13 @@ fail:
 		int gpio = of_get_gpio(pdev->dev.of_node, i);
 		gpio_free(gpio);
 	}
+/* < DTS2014041008275 chenjikun 20140410 begin */
+/* < DTS2014112807052 liujie/214426 integrate DTS2014072505106 begin*/
+#ifdef CONFIG_HUAWEI_WIFI
+	wlan_log_err("wcnss: %s exit,rc:%d;line:%d;\n", __func__,rc,__LINE__);
+#endif
+/* DTS2014112807052 liujie/214426 integrate DTS2014072505106 end > */
+/* DTS2014041008275 chenjikun 20140410 end > */
 	return rc;
 }
 
@@ -1399,6 +1442,14 @@ wcnss_gpios_config(struct resource *gpios_5wire, bool enable)
 {
 	int i, j;
 	int rc = 0;
+
+/* < DTS2014041008275 chenjikun 20140410 begin */
+/* < DTS2014112807052 liujie/214426 integrate DTS2014072505106 begin*/
+#ifdef CONFIG_HUAWEI_WIFI
+    wlan_log_err("wcnss: %s enter;\n", __func__);
+#endif
+/* DTS2014112807052 liujie/214426 integrate DTS2014072505106 end > */
+/* DTS2014041008275 chenjikun 20140410 end > */
 
 	for (i = gpios_5wire->start; i <= gpios_5wire->end; i++) {
 		if (enable) {
@@ -1410,12 +1461,25 @@ wcnss_gpios_config(struct resource *gpios_5wire, bool enable)
 		} else
 			gpio_free(i);
 	}
-
+/* < DTS2014041008275 chenjikun 20140410 begin */
+/* < DTS2014112807052 liujie/214426 integrate DTS2014072505106 begin*/
+#ifdef CONFIG_HUAWEI_WIFI
+	wlan_log_err("wcnss: %s exit,rc:%d;line:%d;\n", __func__,rc,__LINE__);
+#endif
+/* DTS2014112807052 liujie/214426 integrate DTS2014072505106 end > */
+/* DTS2014041008275 chenjikun 20140410 end > */
 	return rc;
 
 fail:
 	for (j = i-1; j >= gpios_5wire->start; j--)
 		gpio_free(j);
+/* < DTS2014041008275 chenjikun 20140410 begin */
+/* < DTS2014112807052 liujie/214426 integrate DTS2014072505106 begin*/
+#ifdef CONFIG_HUAWEI_WIFI
+	wlan_log_err("wcnss: %s exit,rc:%d;line:%d;\n", __func__,rc,__LINE__);
+#endif
+/* DTS2014112807052 liujie/214426 integrate DTS2014072505106 end > */
+/* DTS2014041008275 chenjikun 20140410 end > */
 	return rc;
 }
 
@@ -1499,12 +1563,6 @@ struct device *wcnss_wlan_get_device(void)
 }
 EXPORT_SYMBOL(wcnss_wlan_get_device);
 
-void wcnss_get_monotonic_boottime(struct timespec *ts)
-{
-	get_monotonic_boottime(ts);
-}
-EXPORT_SYMBOL(wcnss_get_monotonic_boottime);
-
 struct platform_device *wcnss_get_platform_device(void)
 {
 	if (penv && penv->pdev)
@@ -1521,14 +1579,6 @@ struct wcnss_wlan_config *wcnss_get_wlan_config(void)
 }
 EXPORT_SYMBOL(wcnss_get_wlan_config);
 
-int wcnss_is_hw_pronto_ver3(void)
-{
-	if (penv && penv->pdev)
-		return penv->wlan_config.is_pronto_v3;
-	return 0;
-}
-EXPORT_SYMBOL(wcnss_is_hw_pronto_ver3);
-
 int wcnss_device_ready(void)
 {
 	if (penv && penv->pdev && penv->nv_downloaded &&
@@ -1537,8 +1587,7 @@ int wcnss_device_ready(void)
 	return 0;
 }
 EXPORT_SYMBOL(wcnss_device_ready);
-
-bool wcnss_cbc_complete(void)
+int wcnss_cbc_complete(void)
 {
 	if (penv && penv->pdev && penv->is_cbc_done &&
 		!wcnss_device_is_shutdown())
@@ -1546,7 +1595,6 @@ bool wcnss_cbc_complete(void)
 	return 0;
 }
 EXPORT_SYMBOL(wcnss_cbc_complete);
-
 int wcnss_device_is_shutdown(void)
 {
 	if (penv && penv->is_shutdown)
@@ -1837,30 +1885,6 @@ static int wcnss_smd_tx(void *data, int len)
 	return ret;
 }
 
-static int wcnss_get_battery_volt(int *result_uv)
-{
-	int rc = -1;
-	struct qpnp_vadc_result adc_result;
-
-	if (!penv->vadc_dev) {
-		pr_err("wcnss: not setting up vadc\n");
-		return rc;
-	}
-
-	rc = qpnp_vadc_read(penv->vadc_dev, VBAT_SNS, &adc_result);
-	if (rc) {
-		pr_err("error reading adc channel = %d, rc = %d\n",
-						VBAT_SNS, rc);
-		return rc;
-	}
-
-	pr_info("Battery mvolts phy=%lld meas=0x%llx\n", adc_result.physical,
-						adc_result.measurement);
-	*result_uv = (int)adc_result.physical;
-
-	return 0;
-}
-
 static void wcnss_notify_vbat(enum qpnp_tm_state state, void *ctx)
 {
 	mutex_lock(&penv->vbat_monitor_mutex);
@@ -1921,27 +1945,6 @@ static int wcnss_setup_vbat_monitoring(void)
 		pr_err("wcnss: tm setup failed: %d\n", rc);
 
 	return rc;
-}
-
-static void wcnss_send_vbatt_indication(struct work_struct *work)
-{
-	struct vbatt_message vbatt_msg;
-	int ret = 0;
-
-	vbatt_msg.hdr.msg_type = WCNSS_VBATT_LEVEL_IND;
-	vbatt_msg.hdr.msg_len = sizeof(struct vbatt_message);
-	vbatt_msg.vbatt.threshold = WCNSS_VBATT_THRESHOLD;
-
-	mutex_lock(&penv->vbat_monitor_mutex);
-	vbatt_msg.vbatt.curr_volt = penv->wlan_config.vbatt;
-	mutex_unlock(&penv->vbat_monitor_mutex);
-	pr_debug("wcnss: send curr_volt: %d to FW\n",
-			vbatt_msg.vbatt.curr_volt);
-
-	ret = wcnss_smd_tx(&vbatt_msg, vbatt_msg.hdr.msg_len);
-	if (ret < 0)
-		pr_err("wcnss: smd tx failed\n");
-	return;
 }
 
 static void wcnss_update_vbatt(struct work_struct *work)
@@ -2139,10 +2142,8 @@ static void wcnssctrl_rx_handler(struct work_struct *worker)
 		smd_read(penv->smd_ch, NULL, len);
 		return;
 	}
-	if (len < sizeof(struct smd_msg_hdr)) {
-		pr_err("wcnss: incomplete header available len = %d\n", len);
+	if (len <= 0)
 		return;
-	}
 
 	rc = smd_read(penv->smd_ch, buf, sizeof(struct smd_msg_hdr));
 	if (rc < sizeof(struct smd_msg_hdr)) {
@@ -2227,8 +2228,6 @@ static void wcnssctrl_rx_handler(struct work_struct *worker)
 		fw_status = wcnss_fw_status();
 		pr_debug("wcnss: received WCNSS_NVBIN_DNLD_RSP from ccpu %u\n",
 			fw_status);
-		if (fw_status != WAIT_FOR_CBC_IND)
-			penv->is_cbc_done = 1;
 		wcnss_setup_vbat_monitoring();
 		break;
 
@@ -2267,52 +2266,6 @@ static void wcnss_send_version_req(struct work_struct *worker)
 	return;
 }
 
-static void wcnss_send_pm_config(struct work_struct *worker)
-{
-	struct smd_msg_hdr *hdr;
-	unsigned char *msg = NULL;
-	int rc, prop_len;
-	u32 *payload;
-
-	if (!of_find_property(penv->pdev->dev.of_node,
-			"qcom,wcnss-pm", &prop_len))
-		return;
-
-	msg = kmalloc((sizeof(struct smd_msg_hdr) + prop_len), GFP_KERNEL);
-
-	if (NULL == msg) {
-		pr_err("wcnss: %s: failed to allocate memory\n", __func__);
-		return;
-	}
-
-	payload = (u32 *)(msg + sizeof(struct smd_msg_hdr));
-
-	prop_len /= sizeof(int);
-
-	rc = of_property_read_u32_array(penv->pdev->dev.of_node,
-			"qcom,wcnss-pm", payload, prop_len);
-	if (rc < 0) {
-		pr_err("wcnss: property read failed\n");
-		kfree(msg);
-		return;
-	}
-
-	pr_debug("%s:size=%d: <%d, %d, %d, %d, %d>\n", __func__,
-			prop_len, *payload, *(payload+1), *(payload+2),
-			*(payload+3), *(payload+4));
-
-	hdr = (struct smd_msg_hdr *)msg;
-	hdr->msg_type = WCNSS_PM_CONFIG_REQ;
-	hdr->msg_len = sizeof(struct smd_msg_hdr) + prop_len;
-
-	rc = wcnss_smd_tx(msg, hdr->msg_len);
-	if (rc < 0)
-		pr_err("wcnss: smd tx failed\n");
-
-	kfree(msg);
-	return;
-}
-
 static void wcnss_pm_qos_enable_pc(struct work_struct *worker)
 {
 	wcnss_disable_pc_remove_req();
@@ -2320,24 +2273,6 @@ static void wcnss_pm_qos_enable_pc(struct work_struct *worker)
 }
 
 static DECLARE_RWSEM(wcnss_pm_sem);
-
-#ifdef CONFIG_MACH_HUAWEI
-#define NAME_LEN 32
-#define NVBIN_FILE_4X "wlan/prima/WCNSS_qcom_wlan_nv_4x.bin"
-
-void wcnss_get_nv_file(char *nv_file, int size)
-{
-	char huawei_product_name[NAME_LEN];
-	int ret = 0;
-
-	ret = get_product_name(huawei_product_name, NAME_LEN);
-	if (strstr(huawei_product_name, "Che1") != NULL)
-		strlcpy(nv_file, NVBIN_FILE_4X, size);
-	else
-		strlcpy(nv_file, NVBIN_FILE, size);
-}
-EXPORT_SYMBOL(wcnss_get_nv_file);
-#endif
 
 static void wcnss_nvbin_dnld(void)
 {
@@ -2352,32 +2287,62 @@ static void wcnss_nvbin_dnld(void)
 	unsigned int nv_blob_size = 0;
 	const struct firmware *nv = NULL;
 	struct device *dev = &penv->pdev->dev;
-#ifdef CONFIG_MACH_HUAWEI
-	char huawei_wlan_nv_file[40];
+
+/* < DTS2014041008275 chenjikun 20140410 begin */
+#ifdef CONFIG_HUAWEI_WIFI
+	char *wifi_device_type = NULL;
+	char *wifi_pubfile_id = NULL;
+	char nvbin_path[WLAN_MAX_CONF_INFO_LEN] = {0};
+	wifi_device_type = get_wifi_device_type();
+	wifi_pubfile_id = (char *)get_hw_wifi_pubfile_id();
 #endif
+/* DTS2014041008275 chenjikun 20140410 end > */
 
 	down_read(&wcnss_pm_sem);
-
-#ifdef CONFIG_MACH_HUAWEI
-	wcnss_get_nv_file(huawei_wlan_nv_file, sizeof(huawei_wlan_nv_file));
-	pr_info("wcnss: Get nv file from %s\n", huawei_wlan_nv_file);
-
-	ret = request_firmware(&nv, huawei_wlan_nv_file, dev);
-
-	if (ret || !nv || !nv->data || !nv->size) {
-		pr_err("wcnss: %s: request_firmware failed for %s\n",
-			__func__, huawei_wlan_nv_file);
-		goto out;
+/* < DTS2014041008275 chenjikun 20140410 begin */
+/* < DTS2014112807052 liujie/214426 integrate DTS2014072505106 begin*/
+/*wcn3660b use the diff nvbin file*/
+#ifdef CONFIG_HUAWEI_WIFI
+	snprintf(nvbin_path,sizeof(nvbin_path), "%s_%s.bin", QUALCOMM_WCN_CALDATA_FORMAT, wifi_pubfile_id);
+	ret = request_firmware(&nv, nvbin_path, dev);
+	if (ret || !nv || !nv->data || !nv->size)
+	{
+	    if(0 == strncmp(wifi_device_type, WLAN_CHIP_QUALCOMM_WCN3660B, strlen(WLAN_CHIP_QUALCOMM_WCN3660B)))
+	    {
+	        ret = request_firmware(&nv, NVBIN_FILE_3660B, dev);
+	        wlan_log_err("wcnss: %s: firmware_path %s\n",__func__, NVBIN_FILE_3660B);
+	    }
+	    else
+	    {
+	        /* < DTS2014042406542 chenjikun 20140424 begin */
+	        ret = request_firmware(&nv, HW_NVBIN_FILE, dev);
+	        if (ret || !nv || !nv->data || !nv->size)
+	        {
+	            ret = request_firmware(&nv, NVBIN_FILE, dev);
+	            wlan_log_err("wcnss: %s: firmware_path %s\n",__func__, NVBIN_FILE);
+	        }
+	        else
+	        {
+	            wlan_log_err("wcnss: %s: firmware_path %s\n",__func__, HW_NVBIN_FILE);
+	        }
+	        /* DTS2014042406542 chenjikun 20140424 end > */
+	    }
+	}
+	else
+	{
+	    wlan_log_err("wcnss: %s: firmware_path %s\n",__func__, nvbin_path);
 	}
 #else
 	ret = request_firmware(&nv, NVBIN_FILE, dev);
+#endif
+/* DTS2014112807052 liujie/214426 integrate DTS2014072505106 end > */
+/* DTS2014041008275 chenjikun 20140410 end > */
 
 	if (ret || !nv || !nv->data || !nv->size) {
-		pr_err("wcnss: %s: request_firmware failed for %s (ret = %d)\n",
-			__func__, NVBIN_FILE, ret);
+		pr_err("wcnss: %s: request_firmware failed for %s\n",
+			__func__, NVBIN_FILE);
 		goto out;
 	}
-#endif
 
 	/* First 4 bytes in nv blob is validity bitmap.
 	 * We cannot validate nv, so skip those 4 bytes.
@@ -2573,7 +2538,7 @@ static void wcnss_nvbin_dnld_main(struct work_struct *worker)
 	if (!FW_CALDATA_CAPABLE())
 		goto nv_download;
 
-	if (!penv->fw_cal_available && IS_CAL_DATA_PRESENT
+	if (!penv->fw_cal_available && 0
 		!= has_calibrated_data && !penv->user_cal_available) {
 		while (!penv->user_cal_available && retry++ < 5)
 			msleep(500);
@@ -2703,21 +2668,22 @@ static int
 wcnss_trigger_config(struct platform_device *pdev)
 {
 	int ret;
-	int rc;
-	struct clk *snoc_qosgen;
 	struct qcom_wcnss_opts *pdata;
 	struct resource *res;
 	int is_pronto_vt;
-	int is_pronto_v3;
 	int pil_retry = 0;
 	int has_pronto_hw = of_property_read_bool(pdev->dev.of_node,
 							"qcom,has-pronto-hw");
+/* < DTS2014041008275 chenjikun 20140410 begin */
+/* < DTS2014112807052 liujie/214426 integrate DTS2014072505106 begin*/
+#ifdef CONFIG_HUAWEI_WIFI
+	wlan_log_err("wcnss: %s:enter;has_48mhz_xo:%d;\n", __func__,has_48mhz_xo);
+#endif
+/* DTS2014112807052 liujie/214426 integrate DTS2014072505106 end >*/
+/* DTS2014041008275 chenjikun 20140410 end > */
 
 	is_pronto_vt = of_property_read_bool(pdev->dev.of_node,
 							"qcom,is-pronto-vt");
-
-	is_pronto_v3 = of_property_read_bool(pdev->dev.of_node,
-							"qcom,is-pronto-v3");
 
 	if (of_property_read_u32(pdev->dev.of_node,
 			"qcom,wlan-rx-buff-count", &penv->wlan_rx_buff_count)) {
@@ -2738,11 +2704,27 @@ wcnss_trigger_config(struct platform_device *pdev)
 		} else {
 			has_48mhz_xo = pdata->has_48mhz_xo;
 		}
+/* < DTS2014041008275 chenjikun 20140410 begin */
+/* < DTS2014112807052 liujie/214426 integrate DTS2014072505106 begin*/
+/*add parameters has_48mhz_xo logs */
+#ifdef CONFIG_HUAWEI_WIFI
+		wlan_log_err("wcnss: %s:set has_48mhz_xo:%d;\n", __func__,has_48mhz_xo);
+#endif
+/* DTS2014112807052 liujie/214426 integrate DTS2014072505106 end > */
+/* DTS2014041008275 chenjikun 20140410 end > */
 	}
+
+/* < DTS2014041008275 chenjikun 20140410 begin */
+/* < DTS2014112807052 liujie/214426 integrate DTS2014072505106 begin*/
+#ifdef CONFIG_HUAWEI_WIFI
+	wlan_log_err("wcnss: %s:has_48mhz_xo:%d;\n", __func__,has_48mhz_xo);
+#endif
+/* DTS2014112807052 liujie/214426 integrate DTS2014072505106 end > */
+/* DTS2014041008275 chenjikun 20140410 end > */
+
 	penv->wcnss_hw_type = (has_pronto_hw) ? WCNSS_PRONTO_HW : WCNSS_RIVA_HW;
 	penv->wlan_config.use_48mhz_xo = has_48mhz_xo;
 	penv->wlan_config.is_pronto_vt = is_pronto_vt;
-	penv->wlan_config.is_pronto_v3 = is_pronto_v3;
 
 	if (WCNSS_CONFIG_UNSPECIFIED == has_autodetect_xo && has_pronto_hw) {
 		has_autodetect_xo = of_property_read_bool(pdev->dev.of_node,
@@ -2787,7 +2769,6 @@ wcnss_trigger_config(struct platform_device *pdev)
 	}
 	INIT_WORK(&penv->wcnssctrl_rx_work, wcnssctrl_rx_handler);
 	INIT_WORK(&penv->wcnssctrl_version_work, wcnss_send_version_req);
-	INIT_WORK(&penv->wcnss_pm_config_work, wcnss_send_pm_config);
 	INIT_WORK(&penv->wcnssctrl_nvbin_dnld_work, wcnss_nvbin_dnld_main);
 	INIT_DELAYED_WORK(&penv->wcnss_pm_qos_del_req, wcnss_pm_qos_enable_pc);
 
@@ -3037,35 +3018,6 @@ wcnss_trigger_config(struct platform_device *pdev)
 		penv->fw_vbatt_state = WCNSS_CONFIG_UNSPECIFIED;
 	}
 
-	snoc_qosgen = clk_get(&pdev->dev, "snoc_qosgen");
-
-	if (IS_ERR(snoc_qosgen)) {
-		pr_err("Couldn't get snoc_qosgen\n");
-	} else {
-		if (clk_prepare_enable(snoc_qosgen)) {
-			pr_err("snoc_qosgen enable failed\n");
-		} else {
-			pr_info("snoc_qosgen configured successfully\n");
-		}
-	}
-
-	if (penv->wlan_config.is_pronto_v3) {
-		penv->vadc_dev = qpnp_get_vadc(&penv->pdev->dev, "wcnss");
-
-		if (IS_ERR(penv->vadc_dev)) {
-			pr_err("%s:  vadc get failed\n", __func__);
-			penv->vadc_dev = NULL;
-		} else {
-			rc = wcnss_get_battery_volt(&penv->wlan_config.vbatt);
-			INIT_WORK(&penv->wcnss_vadc_work,
-					wcnss_send_vbatt_indication);
-
-			if (rc < 0)
-				pr_err("Failed to get battery voltage with error= %d\n",
-									rc);
-		}
-	}
-
 	do {
 		/* trigger initialization of the WCNSS */
 		penv->pil = subsystem_get(WCNSS_PIL_DEVICE);
@@ -3074,9 +3026,21 @@ wcnss_trigger_config(struct platform_device *pdev)
 			ret = PTR_ERR(penv->pil);
 			wcnss_disable_pc_add_req();
 			wcnss_pronto_log_debug_regs();
+/* < DTS2014112702834 chenjikun 20141127 begin */
+#ifdef CONFIG_HUAWEI_DSM
+			/*inorder to avoid the abnormity raise frequently,we just raise the abnormity at the
+			first time when it occurs*/
+			if(pil_retry == 0)
+			{
+			    dev_err(&pdev->dev, "The wcnss load failed at the first time.\n");
+				wifi_dsm_report_num(DSM_WIFI_FAIL_LOADFIRMWARE_ERR,"firmware load failed",ret);
+			}
+#endif
+/* DTS2014112702834 chenjikun 20141127 end > */
 		}
 	} while (pil_retry++ < WCNSS_MAX_PIL_RETRY && IS_ERR(penv->pil));
 
+	/*After WCNSS_MAX_PIL_RETRY, PIL still failure, reset wcnss*/
 	if (IS_ERR(penv->pil)) {
 		wcnss_reset_intr();
 		if (penv->wcnss_notif_hdle)
@@ -3087,10 +3051,6 @@ wcnss_trigger_config(struct platform_device *pdev)
 	}
 	/* Remove pm_qos request */
 	wcnss_disable_pc_remove_req();
-
-	if (of_property_read_bool(pdev->dev.of_node,
-		"qcom,wlan-indication-enabled"))
-		wcnss_en_wlan_led_trigger();
 
 	return 0;
 
@@ -3109,42 +3069,15 @@ fail_res:
 fail_gpio_res:
 	wcnss_disable_pc_remove_req();
 	penv = NULL;
+/* < DTS2014041008275 chenjikun 20140410 begin */
+/* < DTS2014112807052 liujie/214426 integrate DTS2014072505106 begin*/
+#ifdef CONFIG_HUAWEI_WIFI
+	wlan_log_err("wcnss: %s exit,line:%d\n", __func__,__LINE__);
+#endif
+/* DTS2014112807052 liujie/214426 integrate DTS2014072505106 end > */
+/* DTS2014041008275 chenjikun 20140410 end > */
 	return ret;
 }
-
-/* wlan prop driver cannot invoke cancel_work_sync
- * function directly, so to invoke this function it
- * call wcnss_flush_work function
- */
-void wcnss_flush_work(struct work_struct *work)
-{
-	struct work_struct *cnss_work = work;
-	if (cnss_work != NULL)
-		cancel_work_sync(cnss_work);
-}
-EXPORT_SYMBOL(wcnss_flush_work);
-
-/* wlan prop driver cannot invoke show_stack
- * function directly, so to invoke this function it
- * call wcnss_dump_stack function
- */
-void wcnss_dump_stack(struct task_struct *task)
-{
-	show_stack(task, NULL);
-}
-EXPORT_SYMBOL(wcnss_dump_stack);
-
-/* wlan prop driver cannot invoke cancel_delayed_work_sync
- * function directly, so to invoke this function it call
- * wcnss_flush_delayed_work function
- */
-void wcnss_flush_delayed_work(struct delayed_work *dwork)
-{
-	struct delayed_work *cnss_dwork = dwork;
-	if (cnss_dwork != NULL)
-		cancel_delayed_work_sync(cnss_dwork);
-}
-EXPORT_SYMBOL(wcnss_flush_delayed_work);
 
 static int wcnss_node_open(struct inode *inode, struct file *file)
 {
@@ -3162,6 +3095,14 @@ static int wcnss_node_open(struct inode *inode, struct file *file)
 			return -EFAULT;
 	}
 
+	mutex_lock(&penv->dev_lock);
+	penv->user_cal_rcvd = 0;
+	penv->user_cal_read = 0;
+	penv->user_cal_available = false;
+	penv->user_cal_data = NULL;
+	penv->device_opened = 1;
+	mutex_unlock(&penv->dev_lock);
+
 	return rc;
 }
 
@@ -3170,7 +3111,7 @@ static ssize_t wcnss_wlan_read(struct file *fp, char __user
 {
 	int rc = 0;
 
-	if (!penv)
+	if (!penv || !penv->device_opened)
 		return -EFAULT;
 
 	rc = wait_event_interruptible(penv->read_wait, penv->fw_cal_rcvd
@@ -3207,66 +3148,55 @@ static ssize_t wcnss_wlan_write(struct file *fp, const char __user
 			*user_buffer, size_t count, loff_t *position)
 {
 	int rc = 0;
-	char *cal_data = NULL;
+	u32 size = 0;
 
-	if (!penv || penv->user_cal_available)
+	if (!penv || !penv->device_opened || penv->user_cal_available)
 		return -EFAULT;
 
-	if (!penv->user_cal_rcvd && count >= 4 && !penv->user_cal_exp_size) {
-		mutex_lock(&penv->dev_lock);
-		rc = copy_from_user((void *)&penv->user_cal_exp_size,
-				    user_buffer, 4);
-		if (!penv->user_cal_exp_size ||
-		    penv->user_cal_exp_size > MAX_CALIBRATED_DATA_SIZE) {
-			pr_err(DEVICE " invalid size to write %d\n",
-			       penv->user_cal_exp_size);
-			penv->user_cal_exp_size = 0;
-			mutex_unlock(&penv->dev_lock);
+	if (penv->user_cal_rcvd == 0 && count >= 4
+			&& !penv->user_cal_data) {
+		rc = copy_from_user((void *)&size, user_buffer, 4);
+		if (!size || size > MAX_CALIBRATED_DATA_SIZE) {
+			pr_err(DEVICE " invalid size to write %d\n", size);
 			return -EFAULT;
 		}
-		mutex_unlock(&penv->dev_lock);
-		return count;
-	} else if (!penv->user_cal_rcvd && count < 4) {
-		return -EFAULT;
-	}
 
-	mutex_lock(&penv->dev_lock);
+		rc += count;
+		count -= 4;
+		penv->user_cal_exp_size =  size;
+		penv->user_cal_data = kmalloc(size, GFP_KERNEL);
+		if (penv->user_cal_data == NULL) {
+			pr_err(DEVICE " no memory to write\n");
+			return -ENOMEM;
+		}
+		if (0 == count)
+			goto exit;
+
+	} else if (penv->user_cal_rcvd == 0 && count < 4)
+		return -EFAULT;
+
 	if ((UINT32_MAX - count < penv->user_cal_rcvd) ||
-		(penv->user_cal_exp_size < count + penv->user_cal_rcvd)) {
+	     MAX_CALIBRATED_DATA_SIZE < count + penv->user_cal_rcvd) {
 		pr_err(DEVICE " invalid size to write %zu\n", count +
 				penv->user_cal_rcvd);
-		mutex_unlock(&penv->dev_lock);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto exit;
 	}
-
-	cal_data = kmalloc(count, GFP_KERNEL);
-	if (!cal_data) {
-		mutex_unlock(&penv->dev_lock);
-		return -ENOMEM;
-	}
-
-	rc = copy_from_user(cal_data, user_buffer, count);
-	if (!rc) {
-		memcpy(penv->user_cal_data + penv->user_cal_rcvd,
-		       cal_data, count);
+	rc = copy_from_user((void *)penv->user_cal_data +
+			penv->user_cal_rcvd, user_buffer, count);
+	if (0 == rc) {
 		penv->user_cal_rcvd += count;
 		rc += count;
 	}
-
-	kfree(cal_data);
 	if (penv->user_cal_rcvd == penv->user_cal_exp_size) {
 		penv->user_cal_available = true;
 		pr_info_ratelimited("wcnss: user cal written");
 	}
-	mutex_unlock(&penv->dev_lock);
 
+exit:
 	return rc;
 }
 
-static int wcnss_node_release(struct inode *inode, struct file *file)
-{
-	return 0;
-}
 
 static int wcnss_notif_cb(struct notifier_block *this, unsigned long code,
 				void *ss_handle)
@@ -3301,7 +3231,6 @@ static int wcnss_notif_cb(struct notifier_block *this, unsigned long code,
 		wcnss_disable_pc_add_req();
 		schedule_delayed_work(&penv->wcnss_pm_qos_del_req,
 				msecs_to_jiffies(WCNSS_PM_QOS_TIMEOUT));
-		penv->is_shutdown = 1;
 		wcnss_log_debug_regs_on_bite();
 	} else if (code == SUBSYS_POWERUP_FAILURE) {
 		if (pdev && pwlanconfig)
@@ -3325,7 +3254,6 @@ static const struct file_operations wcnss_node_fops = {
 	.open = wcnss_node_open,
 	.read = wcnss_wlan_read,
 	.write = wcnss_wlan_write,
-	.release = wcnss_node_release,
 };
 
 static struct miscdevice wcnss_misc = {
@@ -3338,6 +3266,14 @@ static int
 wcnss_wlan_probe(struct platform_device *pdev)
 {
 	int ret = 0;
+
+/* < DTS2014041008275 chenjikun 20140410 begin */
+/* < DTS2014112807052 liujie/214426 integrate DTS2014072505106 begin*/
+#ifdef CONFIG_HUAWEI_WIFI
+	wlan_log_err("wcnss: %s enter;\n", __func__);
+#endif
+/* DTS2014112807052 liujie/214426 integrate DTS2014072505106 end > */
+/* DTS2014041008275 chenjikun 20140410 end > */
 
 	/* verify we haven't been called more than once */
 	if (penv) {
@@ -3352,13 +3288,6 @@ wcnss_wlan_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	penv->pdev = pdev;
-
-	penv->user_cal_data =
-		devm_kzalloc(&pdev->dev, MAX_CALIBRATED_DATA_SIZE, GFP_KERNEL);
-	if (!penv->user_cal_data) {
-		dev_err(&pdev->dev, "Failed to alloc memory for cal data.\n");
-		return -ENOMEM;
-	}
 
 	/* register sysfs entries */
 	ret = wcnss_create_sysfs(&pdev->dev);
@@ -3377,13 +3306,7 @@ wcnss_wlan_probe(struct platform_device *pdev)
 	mutex_init(&penv->dev_lock);
 	mutex_init(&penv->ctrl_lock);
 	mutex_init(&penv->vbat_monitor_mutex);
-	mutex_init(&penv->pm_qos_mutex);
 	init_waitqueue_head(&penv->read_wait);
-
-	penv->user_cal_rcvd = 0;
-	penv->user_cal_read = 0;
-	penv->user_cal_exp_size = 0;
-	penv->user_cal_available = false;
 
 	/* Since we were built into the kernel we'll be called as part
 	 * of kernel initialization.  We don't know if userspace
@@ -3439,22 +3362,47 @@ static struct platform_driver wcnss_wlan_driver = {
 
 static int __init wcnss_wlan_init(void)
 {
+	int ret = 0;
+/* < DTS2014112702834 chenjikun 20141127 begin */
+#ifdef CONFIG_HUAWEI_DSM
+    wifi_dsm_register();
+#endif
+/* DTS2014112702834 chenjikun 20141127 end > */
 	platform_driver_register(&wcnss_wlan_driver);
 	platform_driver_register(&wcnss_wlan_ctrl_driver);
 	platform_driver_register(&wcnss_ctrl_driver);
 	register_pm_notifier(&wcnss_pm_notifier);
+/* < DTS2014072906208 chenjikun 20140729 begin */
+/*del DTS2014060603241 here temporary*/
+/* DTS2014072906208 chenjikun 20140729 end > */
+#ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
+	ret = wcnss_prealloc_init();
+	if (ret < 0)
+		pr_err("wcnss: pre-allocation failed\n");
+#endif
 
-	return 0;
+	return ret;
 }
 
 static void __exit wcnss_wlan_exit(void)
 {
+/* < DTS2014112702834 chenjikun 20141127 begin */
+#ifdef CONFIG_HUAWEI_DSM
+    dsm_unregister_client(wifi_dclient,&wifi_dsm_info);
+#endif
+/* DTS2014112702834 chenjikun 20141127 end > */
 	if (penv) {
 		if (penv->pil)
 			subsystem_put(penv->pil);
 		penv = NULL;
 	}
 
+#ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
+	wcnss_prealloc_deinit();
+#endif
+/* < DTS2014072906208 chenjikun 20140729 begin */
+/*del DTS2014060603241 here temporary*/
+/* DTS2014072906208 chenjikun 20140729 end > */
 	unregister_pm_notifier(&wcnss_pm_notifier);
 	platform_driver_unregister(&wcnss_ctrl_driver);
 	platform_driver_unregister(&wcnss_wlan_ctrl_driver);

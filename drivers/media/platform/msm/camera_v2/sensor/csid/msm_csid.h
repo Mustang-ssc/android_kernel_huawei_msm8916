@@ -20,8 +20,6 @@
 #include <media/msm_cam_sensor.h>
 #include "msm_sd.h"
 
-#define CSID_NUM_CLK_MAX  16
-
 struct csid_reg_parms_t {
 /* MIPI	CSID registers */
 	uint32_t csid_hw_version_addr;
@@ -85,14 +83,21 @@ struct csid_device {
 	struct csid_ctrl_t *ctrl_reg;
 	uint32_t num_clk;
 	uint32_t num_clk_src_info;
-	struct regulator *reg_ptr;
-	struct clk *csid_clk[CSID_NUM_CLK_MAX];
-	uint32_t csid_clk_index;
-	uint32_t csid_max_clk;
-	uint32_t csid_sof_debug;
-	uint32_t csid_lane_cnt;
+	/* < DTS2014060600229 lwx223669 20140606 begin */
+	/*add a delay work for read mipi packet number when stream on*/
+	/*< DTS2014112200999 tangying/205982 20141122 begin*/
+	/*add NULL point check and remove packet_num_work in msm_csid.h*/
+	/*DTS2014112200999 tangying/205982 20141122 end >*/
+	/*< DTS2014103002530 tangying/2059825 20141030 begin*/
+	/* optimize camera print mipi packet and frame count log*/
+	//struct delayed_work packet_num_work;
+	uint32_t (*csid_read_mipi_pkg)(struct csid_device *);
+	/*DTS2014103002530 tangying/2059825 20141030 end >*/
+	/* DTS2014060600229 lwx223669 20140606 end > */
+
+	struct clk *csid_clk[11];
 };
 
 #define VIDIOC_MSM_CSID_RELEASE \
-	_IOWR('V', BASE_VIDIOC_PRIVATE + 12, struct v4l2_subdev*)
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 5, struct v4l2_subdev*)
 #endif

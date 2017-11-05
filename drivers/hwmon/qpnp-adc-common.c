@@ -44,170 +44,9 @@
    and provided to the battery driver in the units desired for
    their framework which is 0.1DegC. True resolution of 0.1DegC
    will result in the below table size to increase by 10 times */
+/*<DTS2014052303945 liyu 20140529 begin*/
+#ifdef CONFIG_HUAWEI_KERNEL
 static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
-#ifdef CONFIG_MACH_RENDANG
-	{-100,	1262},
-	{-80,	1232},
-	{-60,	1203},
-	{-40,	1173},
-	{-20,	1144},
-	{0,	1115},
-	{20,	1086},
-	{40,	1059},
-	{60,	1032},
-	{80,	1005},
-	{100,	979},
-	{120,	954},
-	{140,	931},
-	{160,	907},
-	{180,	885},
-	{200,	864},
-	{220,	843},
-	{240,	824},
-	{260,	806},
-	{280,	788},
-	{300,	771},
-	{320,	756},
-	{340,	741},
-	{360,	727},
-	{380,	713},
-	{400,	701},
-	{420,	689},
-	{440,	677},
-	{460,	667},
-	{480,	657},
-	{500,	647},
-	{520,	649},
-	{540,	630},
-	{560,	622},
-	{580,	615},
-	{600,	608},
-	{620,	602},
-	{640,	595},
-	{660,	589},
-	{680,	584},
-	{700,	579},
-	{720,	574},
-	{740,	571},
-#elif defined(CONFIG_MACH_JALEBI)
-	{-400,	1753},
-	{-380,	1747},
-	{-360,	1739},
-	{-340,	1731},
-	{-320,	1722},
-	{-300,	1712},
-	{-280,	1701},
-	{-260,	1688},
-	{-240,	1674},
-	{-220,	1659},
-	{-200,	1643},
-	{-180,	1625},
-	{-160,	1605},
-	{-140,	1584},
-	{-120,	1562},
-	{-100,	1537},
-	{-80,	1511},
-	{-60,	1484},
-	{-40,	1454},
-	{-20,	1423},
-	{0,	1390},
-	{20,	1356},
-	{40,	1321},
-	{60,	1284},
-	{80,	1246},
-	{100,	1207},
-	{120,	1167},
-	{140,	1127},
-	{160,	1086},
-	{180,	1044},
-	{200,	1003},
-	{220,	961},
-	{240,	920},
-	{260,	879},
-	{280,	839},
-	{300,	799},
-	{320,	761},
-	{340,	723},
-	{360,	686},
-	{380,	650},
-	{400,	616},
-	{420,	583},
-	{440,	551},
-	{460,	521},
-	{480,	491},
-	{500,	464},
-	{520,	437},
-	{540,	412},
-	{560,	388},
-	{580,	365},
-	{600,	344},
-	{620,	324},
-	{640,	305},
-	{660,	287},
-	{680,	270},
-	{700,	254},
-	{720,	239},
-	{740,	225},
-	{760,	211},
-	{780,	199},
-	{800,	187},
-	{820,	180},
-	{840,	175},
-	{860,	170},
-	{880,	165},
-#elif defined(CONFIG_MACH_CP8675)
-	{-200,	1545},
-	{-180,	1523},
-	{-160,	1501},
-	{-140,	1477},
-	{-120,	1452},
-	{-100,	1427},
-	{-80,	1400},
-	{-60,	1373},
-	{-40,	1345},
-	{-20,	1316},
-	{0,	1287},
-	{20,	1257},
-	{40,	1227},
-	{60,	1197},
-	{80,	1166},
-	{100,	1136},
-	{120,	1106},
-	{140,	1076},
-	{160,	1046},
-	{180,	1016},
-	{200,	987},
-	{220,	959},
-	{240,	931},
-	{260,	904},
-	{280,	878},
-	{300,	852},
-	{320,	827},
-	{340,	803},
-	{360,	780},
-	{380,	758},
-	{400,	736},
-	{420,	716},
-	{440,	696},
-	{460,	677},
-	{480,	659},
-	{500,	642},
-	{520,	625},
-	{540,	609},
-	{560,	594},
-	{580,	580},
-	{600,	566},
-	{620,	553},
-	{640,	541},
-	{660,	530},
-	{680,	518},
-	{700,	508},
-	{720,	498},
-	{740,	489},
-	{760,	480},
-	{780,	471},
-	{800,	463},
-#elif defined(CONFIG_MACH_HUAWEI)
 	{-300,  1609},
 	{-200,  1512},
 	{-100,  1391},
@@ -291,7 +130,9 @@ static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{770,  544},
 	{780,  541},
 	{790,  538}
+};
 #else
+static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{-300,	1642},
 	{-200,	1544},
 	{-100,	1414},
@@ -375,8 +216,9 @@ static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{770,	213},
 	{780,	208},
 	{790,	203}
-#endif /* CONFIG_MACH_RENDANG || CONFIG_MACH_JALEBI || CONFIG_MACH_CP8675 || CONFIG_MACH_HUAWEI */
 };
+#endif
+/* DTS2014052303945 liyu 20140529 end>*/
 
 static const struct qpnp_vadc_map_pt adcmap_qrd_btm_threshold[] = {
 	{-200,	1540},
@@ -541,135 +383,6 @@ static const struct qpnp_vadc_map_pt adcmap_qrd_skug_btm_threshold[] = {
 };
 
 static const struct qpnp_vadc_map_pt adcmap_qrd_skuh_btm_threshold[] = {
-#ifdef CONFIG_MACH_RENDANG
-	{-100,	1262},
-	{-80,	1232},
-	{-60,	1203},
-	{-40,	1173},
-	{-20,	1144},
-	{0,	1115},
-	{20,	1086},
-	{40,	1059},
-	{60,	1032},
-	{80,	1005},
-	{100,	979},
-	{120,	954},
-	{140,	931},
-	{160,	907},
-	{180,	885},
-	{200,	864},
-	{220,	843},
-	{240,	824},
-	{260,	806},
-	{280,	788},
-	{300,	771},
-	{320,	756},
-	{340,	741},
-	{360,	727},
-	{380,	713},
-	{400,	701},
-	{420,	689},
-	{440,	677},
-	{460,	667},
-	{480,	657},
-	{500,	647},
-	{520,	649},
-	{540,	630},
-	{560,	622},
-	{580,	615},
-	{600,	608},
-	{620,	602},
-	{640,	595},
-	{660,	589},
-	{680,	584},
-	{700,	579},
-	{720,	574},
-	{740,	571},
-#elif defined(CONFIG_MACH_HUAWEI)
-	{-300,  1609},
-	{-200,  1512},
-	{-100,  1391},
-	{0,  1253},
-	{10,  1239},
-	{20,  1225},
-	{30,  1210},
-	{40,  1196},
-	{50,  1182},
-	{60,  1168},
-	{70,  1153},
-	{80,  1139},
-	{90,  1125},
-	{100,  1111},
-	{110,  1097},
-	{120,  1083},
-	{130,  1069},
-	{140,  1055},
-	{150,  1042},
-	{160,  1028},
-	{170,  1015},
-	{180,  1002},
-	{190,  989},
-	{200,  976},
-	{210,  963},
-	{220,  950},
-	{230,  938},
-	{240,  926},
-	{250,  914},
-	{260,  902},
-	{270,  890},
-	{280,  879},
-	{290,  867},
-	{300,  856},
-	{310,  845},
-	{320,  835},
-	{330,  824},
-	{340,  814},
-	{350,  804},
-	{360,  794},
-	{370,  785},
-	{380,  775},
-	{390,  766},
-	{400,  757},
-	{410,  748},
-	{420,  740},
-	{430,  731},
-	{440,  723},
-	{450,  715},
-	{460,  707},
-	{470,  700},
-	{480,  692},
-	{490,  685},
-	{500,  678},
-	{510,  671},
-	{520,  664},
-	{530,  658},
-	{540,  651},
-	{550,  645},
-	{560,  639},
-	{570,  633},
-	{580,  628},
-	{590,  622},
-	{600,  617},
-	{610,  611},
-	{620,  606},
-	{630,  601},
-	{640,  596},
-	{650,  592},
-	{660,  587},
-	{670,  583},
-	{680,  578},
-	{690,  574},
-	{700,  570},
-	{710,  566},
-	{720,  562},
-	{730,  558},
-	{740,  555},
-	{750,  551},
-	{760,  548},
-	{770,  544},
-	{780,  541},
-	{790,  538}
-#else
 	{-200,	1531},
 	{-180,	1508},
 	{-160,	1483},
@@ -725,169 +438,6 @@ static const struct qpnp_vadc_map_pt adcmap_qrd_skuh_btm_threshold[] = {
 	{840,	530},
 	{860,	524},
 	{880,	520},
-#endif /* CONFIG_MACH_RENDANG || CONFIG_MACH_HUAWEI */
-};
-
-static const struct qpnp_vadc_map_pt adcmap_qrd_skuc_btm_threshold[] = {
-	{-200,	1539},
-	{-180,	1515},
-	{-160,	1491},
-	{-140,	1465},
-	{-120,	1438},
-	{-100,	1410},
-	{-80,	1381},
-	{-60,	1352},
-	{-40,	1322},
-	{-20,	1291},
-	{0,	1260},
-	{20,	1229},
-	{40,	1197},
-	{60,	1166},
-	{80,	1134},
-	{100,	1103},
-	{120,	1072},
-	{140,	1042},
-	{160,	1012},
-	{180,	982},
-	{200,	954},
-	{220,	926},
-	{240,	899},
-	{260,	873},
-	{280,	847},
-	{300,	823},
-	{320,	800},
-	{340,	777},
-	{360,	756},
-	{380,	735},
-	{400,	715},
-	{420,	696},
-	{440,	679},
-	{460,	662},
-	{480,	645},
-	{500,	630},
-	{520,	615},
-	{540,	602},
-	{560,	588},
-	{580,	576},
-	{600,	564},
-	{620,	553},
-	{640,	543},
-	{660,	533},
-	{680,	523},
-	{700,	515},
-	{720,	506},
-	{740,	498},
-	{760,	491},
-	{780,	484},
-	{800,	477},
-};
-
-static const struct qpnp_vadc_map_pt adcmap_qrd_skue_btm_threshold[] = {
-	{-200,	1385},
-	{-180,	1353},
-	{-160,	1320},
-	{-140,	1287},
-	{-120,	1253},
-	{-100,	1218},
-	{-80,	1184},
-	{-60,	1149},
-	{-40,	1115},
-	{-20,	1080},
-	{0,	1046},
-	{20,	1013},
-	{40,	980},
-	{60,	948},
-	{80,	917},
-	{100,	887},
-	{120,	858},
-	{140,	830},
-	{160,	803},
-	{180,	777},
-	{200,	752},
-	{220,	729},
-	{240,	706},
-	{260,	685},
-	{280,	664},
-	{300,	645},
-	{320,	626},
-	{340,	609},
-	{360,	593},
-	{380,	577},
-	{400,	563},
-	{420,	549},
-	{440,	536},
-	{460,	524},
-	{480,	512},
-	{500,	501},
-	{520,	491},
-	{540,	481},
-	{560,	472},
-	{580,	464},
-	{600,	456},
-	{620,	448},
-	{640,	441},
-	{660,	435},
-	{680,	428},
-	{700,	423},
-	{720,	417},
-	{740,	412},
-	{760,	407},
-	{780,	402},
-	{800,	398},
-};
-
-static const struct qpnp_vadc_map_pt adcmap_qrd_skul_btm_threshold[] = {
-	{-200,	1515},
-	{-180,	1492},
-	{-160,	1467},
-	{-140,	1441},
-	{-120,	1413},
-	{-100,	1386},
-	{-80,	1357},
-	{-60,	1327},
-	{-40,	1296},
-	{-20,	1264},
-	{0,	1232},
-	{20,	1200},
-	{40,	1167},
-	{60,	1134},
-	{80,	1100},
-	{100,	1050},
-	{120,	1034},
-	{140,	1000},
-	{160,	967},
-	{180,	935},
-	{200,	903},
-	{220,	871},
-	{240,	840},
-	{260,	810},
-	{280,	780},
-	{300,	751},
-	{320,	723},
-	{340,	696},
-	{360,	670},
-	{380,	645},
-	{400,	620},
-	{420,	597},
-	{440,	574},
-	{460,	552},
-	{480,	531},
-	{500,	512},
-	{520,	492},
-	{540,	474},
-	{560,	457},
-	{580,	440},
-	{600,	425},
-	{620,	410},
-	{640,	396},
-	{660,	383},
-	{680,	370},
-	{700,	358},
-	{720,	347},
-	{740,	336},
-	{760,	326},
-	{780,	311},
-	{800,	307},
 };
 
 /* Voltage to temperature */
@@ -966,8 +516,9 @@ static const struct qpnp_vadc_map_pt adcmap_150k_104ef_104fb[] = {
 	{30,	125}
 };
 
+/*<DTS2014052303945 liyu 20140529 begin*/
+#ifdef CONFIG_HUAWEI_KERNEL
 static const struct qpnp_vadc_map_pt adcmap_smb_batt_therm[] = {
-#ifdef CONFIG_MACH_HUAWEI
 	{-300,  1609},
 	{-200,  1512},
 	{-100,  1391},
@@ -1051,7 +602,9 @@ static const struct qpnp_vadc_map_pt adcmap_smb_batt_therm[] = {
 	{770,  544},
 	{780,  541},
 	{790,  538}
+};
 #else
+static const struct qpnp_vadc_map_pt adcmap_smb_batt_therm[] = {
 	{-300,	1625},
 	{-200,	1515},
 	{-100,	1368},
@@ -1135,46 +688,183 @@ static const struct qpnp_vadc_map_pt adcmap_smb_batt_therm[] = {
 	{770,	195},
 	{780,	190},
 	{790,	186}
-#endif /* CONFIG_MACH_HUAWEI */
+};
+#endif
+/* DTS2014052303945 liyu 20140529 end>*/
+
+/* <DTS2014052400953 chenyuanquan 20140524 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+static const struct qpnp_vadc_map_pt adcmap_pa_therm[] = {
+	{-40,	1712},
+	{-39,	1708},
+	{-38,	1703},
+	{-37,	1697},
+	{-36,	1692},
+	{-35,	1686},
+	{-34,	1680},
+	{-33,	1674},
+	{-32,	1668},
+	{-31,	1661},
+	{-30,	1654},
+	{-29,	1647},
+	{-28,	1639},
+	{-27,	1632},
+	{-26,	1624},
+	{-25,	1615},
+	{-24,	1607},
+	{-23,	1598},
+	{-22,	1589},
+	{-21,	1580},
+	{-20,	1570},
+	{-19,	1560},
+	{-18,	1550},
+	{-17,	1539},
+	{-16,	1528},
+	{-15,	1517},
+	{-14,	1506},
+	{-13,	1494},
+	{-12,	1482},
+	{-11,	1470},
+	{-10,	1457},
+	{-9,	1444},
+	{-8,	1431},
+	{-7,	1418},
+	{-6,	1404},
+	{-5,	1390},
+	{-4,	1376},
+	{-3,	1361},
+	{-2,	1346},
+	{-1,	1332},
+	{0, 	1316},
+	{1, 	1301},
+	{2, 	1286},
+	{3, 	1270},
+	{4, 	1254},
+	{5, 	1238},
+	{6, 	1222},
+	{7, 	1205},
+	{8, 	1189},
+	{9, 	1172},
+	{10,	1155},
+	{11,	1139},
+	{12,	1122},
+	{13,	1105},
+	{14,	1088},
+	{15,	1070},
+	{16,	1053},
+	{17,	1036},
+	{18,	1019},
+	{19,	1002},
+	{20,	985},
+	{21,	968},
+	{22,	951},
+	{23,	934},
+	{24,	917},
+	{25,	900},
+	{26,	883},
+	{27,	867},
+	{28,	850},
+	{29,	834},
+	{30,	817},
+	{31,	801},
+	{32,	785},
+	{33,	769},
+	{34,	753},
+	{35,	738},
+	{36,	723},
+	{37,	707},
+	{38,	692},
+	{39,	678},
+	{40,	663},
+	{41,	649},
+	{42,	635},
+	{43,	621},
+	{44,	607},
+	{45,	593},
+	{46,	580},
+	{47,	567},
+	{48,	554},
+	{49,	541},
+	{50,	529},
+	{51,	517},
+	{52,	505},
+	{53,	493},
+	{54,	481},
+	{55,	470},
+	{56,	459},
+	{57,	448},
+	{58,	438},
+	{59,	427},
+	{60,	417},
+	{61,	407},
+	{62,	397},
+	{63,	388},
+	{64,	379},
+	{65,	370},
+	{66,	361},
+	{67,	352},
+	{68,	344},
+	{69,	336},
+	{70,	328},
+	{71,	320},
+	{72,	312},
+	{73,	305},
+	{74,	298},
+	{75,	291},
+	{76,	284},
+	{77,	277},
+	{78,	270},
+	{79,	264},
+	{80,	257},
+	{81,	251},
+	{82,	245},
+	{83,	239},
+	{84,	234},
+	{85,	228},
+	{86,	223},
+	{87,	218},
+	{88,	212},
+	{89,	207},
+	{90,	203},
+	{91,	198},
+	{92,	193},
+	{93,	189},
+	{94,	184},
+	{95,	180},
+	{96,	176},
+	{97,	171},
+	{98,	167},
+	{99,	164},
+	{100,	160},
+	{101,	156},
+	{102,	152},
+	{103,	149},
+	{104,	146},
+	{105,	142},
+	{106,	139},
+	{107,	136},
+	{108,	133},
+	{109,	130},
+	{110,	127},
+	{111,	124},
+	{112,	121},
+	{113,	118},
+	{114,	116},
+	{115,	113},
+	{116,	111},
+	{117,	108},
+	{118,	106},
+	{119,	104},
+	{120,	101},
+	{121,	99},
+	{122,	97},
+	{123,	95},
+	{124,	93},
+	{125,	91}
 };
 
-/* Voltage to temperature */
-static const struct qpnp_vadc_map_pt adcmap_ncp03wf683[] = {
-	{1742,	-40},
-	{1718,	-35},
-	{1687,	-30},
-	{1647,	-25},
-	{1596,	-20},
-	{1534,	-15},
-	{1459,	-10},
-	{1372,	-5},
-	{1275,	0},
-	{1169,	5},
-	{1058,	10},
-	{945,	15},
-	{834,	20},
-	{729,	25},
-	{630,	30},
-	{541,	35},
-	{461,	40},
-	{392,	45},
-	{332,	50},
-	{280,	55},
-	{236,	60},
-	{199,	65},
-	{169,	70},
-	{142,	75},
-	{121,	80},
-	{102,	85},
-	{87,	90},
-	{74,	95},
-	{64,	100},
-	{55,	105},
-	{47,	110},
-	{40,	115},
-	{35,	120},
-	{30,	125}
-};
+#endif
+/* DTS2014052400953 chenyuanquan 20140524 end> */
 
 static int32_t qpnp_adc_map_voltage_temp(const struct qpnp_vadc_map_pt *pts,
 		uint32_t tablesize, int32_t input, int64_t *output)
@@ -1429,8 +1119,6 @@ int32_t qpnp_adc_scale_batt_therm(struct qpnp_vadc_chip *chip,
 	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
 			adc_properties, chan_properties);
 
-	adc_chan_result->measurement = bat_voltage;
-
 	return qpnp_adc_map_temp_voltage(
 			adcmap_btm_threshold,
 			ARRAY_SIZE(adcmap_btm_threshold),
@@ -1449,8 +1137,6 @@ int32_t qpnp_adc_scale_qrd_batt_therm(struct qpnp_vadc_chip *chip,
 
 	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
 			adc_properties, chan_properties);
-
-	adc_chan_result->measurement = bat_voltage;
 
 	return qpnp_adc_map_temp_voltage(
 			adcmap_qrd_btm_threshold,
@@ -1471,8 +1157,6 @@ int32_t qpnp_adc_scale_qrd_skuaa_batt_therm(struct qpnp_vadc_chip *chip,
 	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
 			adc_properties, chan_properties);
 
-	adc_chan_result->measurement = bat_voltage;
-
 	return qpnp_adc_map_temp_voltage(
 			adcmap_qrd_skuaa_btm_threshold,
 			ARRAY_SIZE(adcmap_qrd_skuaa_btm_threshold),
@@ -1492,8 +1176,6 @@ int32_t qpnp_adc_scale_qrd_skug_batt_therm(struct qpnp_vadc_chip *chip,
 	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
 			adc_properties, chan_properties);
 
-	adc_chan_result->measurement = bat_voltage;
-
 	return qpnp_adc_map_temp_voltage(
 			adcmap_qrd_skug_btm_threshold,
 			ARRAY_SIZE(adcmap_qrd_skug_btm_threshold),
@@ -1501,6 +1183,29 @@ int32_t qpnp_adc_scale_qrd_skug_batt_therm(struct qpnp_vadc_chip *chip,
 			&adc_chan_result->physical);
 }
 EXPORT_SYMBOL(qpnp_adc_scale_qrd_skug_batt_therm);
+
+/* <DTS2014052400953 chenyuanquan 20140524 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+int32_t qpnp_adc_scale_huawei_pa_therm(struct qpnp_vadc_chip *chip,
+		int32_t adc_code,
+		const struct qpnp_adc_properties *adc_properties,
+		const struct qpnp_vadc_chan_properties *chan_properties,
+		struct qpnp_vadc_result *adc_chan_result)
+{
+	int64_t pa_voltage = 0;
+
+	pa_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
+			adc_properties, chan_properties);
+
+	return qpnp_adc_map_temp_voltage(
+			adcmap_pa_therm,
+			ARRAY_SIZE(adcmap_pa_therm),
+			pa_voltage,
+			&adc_chan_result->physical);
+}
+EXPORT_SYMBOL(qpnp_adc_scale_huawei_pa_therm);
+#endif
+/* DTS2014052400953 chenyuanquan 20140524 end> */
 
 int32_t qpnp_adc_scale_qrd_skuh_batt_therm(struct qpnp_vadc_chip *chip,
 		int32_t adc_code,
@@ -1513,70 +1218,23 @@ int32_t qpnp_adc_scale_qrd_skuh_batt_therm(struct qpnp_vadc_chip *chip,
 	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
 			adc_properties, chan_properties);
 
+    /* <DTS2014061108305 zhaoxiaoli 20140611 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+    return qpnp_adc_map_temp_voltage(
+            adcmap_btm_threshold,
+            ARRAY_SIZE(adcmap_btm_threshold),
+            bat_voltage,
+            &adc_chan_result->physical);
+#else
 	return qpnp_adc_map_temp_voltage(
 			adcmap_qrd_skuh_btm_threshold,
 			ARRAY_SIZE(adcmap_qrd_skuh_btm_threshold),
 			bat_voltage,
 			&adc_chan_result->physical);
+#endif
+    /* DTS2014061108305 zhaoxiaoli 20140611 end> */
 }
 EXPORT_SYMBOL(qpnp_adc_scale_qrd_skuh_batt_therm);
-
-int32_t qpnp_adc_scale_qrd_skuc_batt_therm(struct qpnp_vadc_chip *chip,
-			int32_t adc_code,
-			const struct qpnp_adc_properties *adc_properties,
-			const struct qpnp_vadc_chan_properties *chan_properties,
-			struct qpnp_vadc_result *adc_chan_result)
-{
-	int64_t bat_voltage = 0;
-
-	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
-			adc_properties, chan_properties);
-
-	return qpnp_adc_map_temp_voltage(
-			adcmap_qrd_skuc_btm_threshold,
-			ARRAY_SIZE(adcmap_qrd_skuc_btm_threshold),
-			bat_voltage,
-			&adc_chan_result->physical);
-}
-EXPORT_SYMBOL(qpnp_adc_scale_qrd_skuc_batt_therm);
-
-int32_t qpnp_adc_scale_qrd_skue_batt_therm(struct qpnp_vadc_chip *chip,
-			int32_t adc_code,
-			const struct qpnp_adc_properties *adc_properties,
-			const struct qpnp_vadc_chan_properties *chan_properties,
-			struct qpnp_vadc_result *adc_chan_result)
-{
-	int64_t bat_voltage = 0;
-
-	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
-			adc_properties, chan_properties);
-
-	return qpnp_adc_map_temp_voltage(
-			adcmap_qrd_skue_btm_threshold,
-			ARRAY_SIZE(adcmap_qrd_skue_btm_threshold),
-			bat_voltage,
-			&adc_chan_result->physical);
-}
-EXPORT_SYMBOL(qpnp_adc_scale_qrd_skue_batt_therm);
-
-int32_t qpnp_adc_scale_qrd_skul_batt_therm(struct qpnp_vadc_chip *chip,
-			int32_t adc_code,
-			const struct qpnp_adc_properties *adc_properties,
-			const struct qpnp_vadc_chan_properties *chan_properties,
-			struct qpnp_vadc_result *adc_chan_result)
-{
-	int64_t bat_voltage = 0;
-
-	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
-			adc_properties, chan_properties);
-
-	return qpnp_adc_map_temp_voltage(
-			adcmap_qrd_skul_btm_threshold,
-			ARRAY_SIZE(adcmap_qrd_skul_btm_threshold),
-			bat_voltage,
-			&adc_chan_result->physical);
-}
-EXPORT_SYMBOL(qpnp_adc_scale_qrd_skul_batt_therm);
 
 int32_t qpnp_adc_scale_smb_batt_therm(struct qpnp_vadc_chip *chip,
 		int32_t adc_code,
@@ -1693,25 +1351,6 @@ int32_t qpnp_adc_tm_scale_therm_voltage_pu2(struct qpnp_vadc_chip *chip,
 	return 0;
 }
 EXPORT_SYMBOL(qpnp_adc_tm_scale_therm_voltage_pu2);
-
-int32_t qpnp_adc_scale_therm_ncp03(struct qpnp_vadc_chip *chip,
-		int32_t adc_code,
-		const struct qpnp_adc_properties *adc_properties,
-		const struct qpnp_vadc_chan_properties *chan_properties,
-		struct qpnp_vadc_result *adc_chan_result)
-{
-	int64_t therm_voltage = 0;
-
-	therm_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
-			adc_properties, chan_properties);
-
-	qpnp_adc_map_voltage_temp(adcmap_ncp03wf683,
-		ARRAY_SIZE(adcmap_ncp03wf683),
-		therm_voltage, &adc_chan_result->physical);
-
-	return 0;
-}
-EXPORT_SYMBOL(qpnp_adc_scale_therm_ncp03);
 
 int32_t qpnp_adc_scale_batt_id(struct qpnp_vadc_chip *chip,
 		int32_t adc_code,
@@ -1899,56 +1538,6 @@ int32_t qpnp_adc_absolute_rthr(struct qpnp_vadc_chip *chip,
 }
 EXPORT_SYMBOL(qpnp_adc_absolute_rthr);
 
-int32_t qpnp_vadc_absolute_rthr(struct qpnp_vadc_chip *chip,
-		const struct qpnp_vadc_chan_properties *chan_prop,
-		struct qpnp_adc_tm_btm_param *param,
-		uint32_t *low_threshold, uint32_t *high_threshold)
-{
-	struct qpnp_vadc_linear_graph vbatt_param;
-	int rc = 0, sign = 0;
-	int64_t low_thr = 0, high_thr = 0;
-
-	if (!chan_prop || !chan_prop->offset_gain_numerator ||
-		!chan_prop->offset_gain_denominator)
-		return -EINVAL;
-
-	rc = qpnp_get_vadc_gain_and_offset(chip, &vbatt_param, CALIB_ABSOLUTE);
-	if (rc < 0)
-		return rc;
-
-	low_thr = (((param->low_thr)/chan_prop->offset_gain_denominator
-					- QPNP_ADC_625_UV) * vbatt_param.dy);
-	if (low_thr < 0) {
-		sign = 1;
-		low_thr = -low_thr;
-	}
-	low_thr = low_thr * chan_prop->offset_gain_numerator;
-	do_div(low_thr, QPNP_ADC_625_UV);
-	if (sign)
-		low_thr = -low_thr;
-	*low_threshold = low_thr + vbatt_param.adc_gnd;
-
-	sign = 0;
-	high_thr = (((param->high_thr)/chan_prop->offset_gain_denominator
-					- QPNP_ADC_625_UV) * vbatt_param.dy);
-	if (high_thr < 0) {
-		sign = 1;
-		high_thr = -high_thr;
-	}
-	high_thr = high_thr * chan_prop->offset_gain_numerator;
-	do_div(high_thr, QPNP_ADC_625_UV);
-	if (sign)
-		high_thr = -high_thr;
-	*high_threshold = high_thr + vbatt_param.adc_gnd;
-
-	pr_debug("high_volt:%d, low_volt:%d\n", param->high_thr,
-				param->low_thr);
-	pr_debug("adc_code_high:%x, adc_code_low:%x\n", *high_threshold,
-				*low_threshold);
-	return 0;
-}
-EXPORT_SYMBOL(qpnp_vadc_absolute_rthr);
-
 int32_t qpnp_adc_btm_scaler(struct qpnp_vadc_chip *chip,
 		struct qpnp_adc_tm_btm_param *param,
 		uint32_t *low_threshold, uint32_t *high_threshold)
@@ -2014,11 +1603,20 @@ int32_t qpnp_adc_qrd_skuh_btm_scaler(struct qpnp_vadc_chip *chip,
 
 	pr_debug("warm_temp:%d and cool_temp:%d\n", param->high_temp,
 				param->low_temp);
+    /* <DTS2014061108305 zhaoxiaoli 20140611 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+ 	rc = qpnp_adc_map_voltage_temp(
+		adcmap_btm_threshold,
+		ARRAY_SIZE(adcmap_btm_threshold),
+		(param->low_temp),
+		&low_output);
+#else
 	rc = qpnp_adc_map_voltage_temp(
 		adcmap_qrd_skuh_btm_threshold,
 		ARRAY_SIZE(adcmap_qrd_skuh_btm_threshold),
 		(param->low_temp),
 		&low_output);
+#endif
 	if (rc) {
 		pr_debug("low_temp mapping failed with %d\n", rc);
 		return rc;
@@ -2029,11 +1627,20 @@ int32_t qpnp_adc_qrd_skuh_btm_scaler(struct qpnp_vadc_chip *chip,
 	do_div(low_output, btm_param.adc_vref);
 	low_output += btm_param.adc_gnd;
 
+#ifdef CONFIG_HUAWEI_KERNEL
+	rc = qpnp_adc_map_voltage_temp(
+		adcmap_btm_threshold,
+		ARRAY_SIZE(adcmap_btm_threshold),
+		(param->high_temp),
+		&high_output);
+#else
 	rc = qpnp_adc_map_voltage_temp(
 		adcmap_qrd_skuh_btm_threshold,
 		ARRAY_SIZE(adcmap_qrd_skuh_btm_threshold),
 		(param->high_temp),
 		&high_output);
+#endif
+    /* DTS2014061108305 zhaoxiaoli 20140611 end> */
 	if (rc) {
 		pr_debug("high temp mapping failed with %d\n", rc);
 		return rc;
@@ -2054,59 +1661,6 @@ int32_t qpnp_adc_qrd_skuh_btm_scaler(struct qpnp_vadc_chip *chip,
 	return 0;
 }
 EXPORT_SYMBOL(qpnp_adc_qrd_skuh_btm_scaler);
-
-int32_t qpnp_adc_qrd_skue_btm_scaler(struct qpnp_vadc_chip *chip,
-		struct qpnp_adc_tm_btm_param *param,
-		uint32_t *low_threshold, uint32_t *high_threshold)
-{
-	struct qpnp_vadc_linear_graph btm_param;
-	int64_t low_output = 0, high_output = 0;
-	int rc = 0;
-
-	qpnp_get_vadc_gain_and_offset(chip, &btm_param, CALIB_RATIOMETRIC);
-
-	pr_debug("warm_temp:%d and cool_temp:%d\n", param->high_temp,
-				param->low_temp);
-	rc = qpnp_adc_map_voltage_temp(
-		adcmap_qrd_skue_btm_threshold,
-		ARRAY_SIZE(adcmap_qrd_skue_btm_threshold),
-		(param->low_temp),
-		&low_output);
-	if (rc) {
-		pr_debug("low_temp mapping failed with %d\n", rc);
-		return rc;
-	}
-
-	pr_debug("low_output:%lld\n", low_output);
-	low_output *= btm_param.dy;
-	do_div(low_output, btm_param.adc_vref);
-	low_output += btm_param.adc_gnd;
-
-	rc = qpnp_adc_map_voltage_temp(
-		adcmap_qrd_skue_btm_threshold,
-		ARRAY_SIZE(adcmap_qrd_skue_btm_threshold),
-		(param->high_temp),
-		&high_output);
-	if (rc) {
-		pr_debug("high temp mapping failed with %d\n", rc);
-		return rc;
-	}
-
-	pr_debug("high_output:%lld\n", high_output);
-	high_output *= btm_param.dy;
-	do_div(high_output, btm_param.adc_vref);
-	high_output += btm_param.adc_gnd;
-
-	/* btm low temperature correspondes to high voltage threshold */
-	*low_threshold = high_output;
-	/* btm high temperature correspondes to low voltage threshold */
-	*high_threshold = low_output;
-
-	pr_debug("high_volt:%d, low_volt:%d\n", *high_threshold,
-				*low_threshold);
-	return 0;
-}
-EXPORT_SYMBOL(qpnp_adc_qrd_skue_btm_scaler);
 
 int32_t qpnp_adc_smb_btm_rscaler(struct qpnp_vadc_chip *chip,
 		struct qpnp_adc_tm_btm_param *param,
@@ -2277,20 +1831,6 @@ int qpnp_adc_get_revid_version(struct device *dev)
 		(revid_data->pmic_type == PM8916_V2P0_TYPE) &&
 		(revid_data->pmic_subtype == PM8916_V2P0_SUBTYPE))
 			return QPNP_REV_ID_8916_2_0;
-	else if ((revid_data->rev1 == PM8909_V1P0_REV1) &&
-		(revid_data->rev2 == PM8909_V1P0_REV2) &&
-		(revid_data->rev3 == PM8909_V1P0_REV3) &&
-		(revid_data->rev4 == PM8909_V1P0_REV4) &&
-		(revid_data->pmic_type == PM8909_V1P0_TYPE) &&
-		(revid_data->pmic_subtype == PM8909_V1P0_SUBTYPE))
-			return QPNP_REV_ID_8909_1_0;
-	else if ((revid_data->rev1 == PM8909_V1P1_REV1) &&
-		(revid_data->rev2 == PM8909_V1P1_REV2) &&
-		(revid_data->rev3 == PM8909_V1P1_REV3) &&
-		(revid_data->rev4 == PM8909_V1P1_REV4) &&
-		(revid_data->pmic_type == PM8909_V1P1_TYPE) &&
-		(revid_data->pmic_subtype == PM8909_V1P1_SUBTYPE))
-			return QPNP_REV_ID_8909_1_1;
 	else
 		return -EINVAL;
 }
@@ -2347,7 +1887,7 @@ int32_t qpnp_adc_get_devicetree_data(struct spmi_device *spmi,
 
 	for_each_child_of_node(node, child) {
 		int channel_num, scaling, post_scaling, hw_settle_time;
-		int fast_avg_setup, calib_type = 0, rc;
+		int fast_avg_setup, calib_type, rc;
 		const char *calibration_param, *channel_name;
 
 		channel_name = of_get_property(child,
@@ -2368,40 +1908,23 @@ int32_t qpnp_adc_get_devicetree_data(struct spmi_device *spmi,
 			pr_err("Invalid channel decimation property\n");
 			return -EINVAL;
 		}
-		if (!of_device_is_compatible(node, "qcom,qpnp-iadc")) {
-			rc = of_property_read_u32(child,
-				"qcom,hw-settle-time", &hw_settle_time);
-			if (rc) {
-				pr_err("Invalid channel hw settle time property\n");
-				return -EINVAL;
-			}
-			rc = of_property_read_u32(child,
+		rc = of_property_read_u32(child,
 				"qcom,pre-div-channel-scaling", &scaling);
-			if (rc) {
-				pr_err("Invalid channel scaling property\n");
-				return -EINVAL;
-			}
-			rc = of_property_read_u32(child,
+		if (rc) {
+			pr_err("Invalid channel scaling property\n");
+			return -EINVAL;
+		}
+		rc = of_property_read_u32(child,
 				"qcom,scale-function", &post_scaling);
-			if (rc) {
-				pr_err("Invalid channel post scaling property\n");
-				return -EINVAL;
-			}
-			rc = of_property_read_string(child,
-				"qcom,calibration-type", &calibration_param);
-			if (rc) {
-				pr_err("Invalid calibration type\n");
-				return -EINVAL;
-			}
-			if (!strcmp(calibration_param, "absolute"))
-				calib_type = CALIB_ABSOLUTE;
-			else if (!strcmp(calibration_param, "ratiometric"))
-				calib_type = CALIB_RATIOMETRIC;
-			else {
-				pr_err("%s: Invalid calibration property\n",
-						__func__);
-				return -EINVAL;
-			}
+		if (rc) {
+			pr_err("Invalid channel post scaling property\n");
+			return -EINVAL;
+		}
+		rc = of_property_read_u32(child,
+				"qcom,hw-settle-time", &hw_settle_time);
+		if (rc) {
+			pr_err("Invalid channel hw settle time property\n");
+			return -EINVAL;
 		}
 		rc = of_property_read_u32(child,
 				"qcom,fast-avg-setup", &fast_avg_setup);
@@ -2409,17 +1932,29 @@ int32_t qpnp_adc_get_devicetree_data(struct spmi_device *spmi,
 			pr_err("Invalid channel fast average setup\n");
 			return -EINVAL;
 		}
+		rc = of_property_read_string(child, "qcom,calibration-type",
+							&calibration_param);
+		if (rc) {
+			pr_err("Invalid calibration type\n");
+			return -EINVAL;
+		}
+		if (!strncmp(calibration_param, "absolute", 8))
+			calib_type = CALIB_ABSOLUTE;
+		else if (!strncmp(calibration_param, "ratiometric", 11))
+			calib_type = CALIB_RATIOMETRIC;
+		else {
+			pr_err("%s: Invalid calibration property\n", __func__);
+			return -EINVAL;
+		}
 		/* Individual channel properties */
 		adc_channel_list[i].name = (char *)channel_name;
 		adc_channel_list[i].channel_num = channel_num;
+		adc_channel_list[i].chan_path_prescaling = scaling;
 		adc_channel_list[i].adc_decimation = decimation;
+		adc_channel_list[i].adc_scale_fn = post_scaling;
+		adc_channel_list[i].hw_settle_time = hw_settle_time;
 		adc_channel_list[i].fast_avg_setup = fast_avg_setup;
-		if (!of_device_is_compatible(node, "qcom,qpnp-iadc")) {
-			adc_channel_list[i].chan_path_prescaling = scaling;
-			adc_channel_list[i].adc_scale_fn = post_scaling;
-			adc_channel_list[i].hw_settle_time = hw_settle_time;
-			adc_channel_list[i].calib_type = calib_type;
-		}
+		adc_channel_list[i].calib_type = calib_type;
 		i++;
 	}
 

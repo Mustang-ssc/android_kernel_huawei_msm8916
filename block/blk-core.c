@@ -38,6 +38,22 @@
 #include "blk.h"
 #include "blk-cgroup.h"
 
+/* < DTS2014061400183 jingbing 20140614 begin */
+#ifdef CONFIG_HW_SYSTEM_WR_PROTECT
+#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
+#include <linux/store_log.h>
+
+#endif
+
+/* < DTS2014081108133 duanhuan 20140805 begin */
+/* < DTS2014111306772 duanhuan 20141110 begin */
+#ifdef CONFIG_HUAWEI_DSM
+/* DTS2014111306772 duanhuan 20141110 end > */
+#include <linux/mmc/dsm_emmc.h>
+#endif
+/* DTS2014081108133 duanhuan 20140805 end > */
+#endif
+/* DTS2014061400183 jingbing 20140614 end > */
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_complete);
@@ -54,6 +70,15 @@ static struct kmem_cache *request_cachep;
  * For queue allocation
  */
 struct kmem_cache *blk_requestq_cachep;
+
+/* < DTS2014061400183 jingbing 20140614 begin */
+#ifdef CONFIG_HW_SYSTEM_WR_PROTECT
+/* system write protect flag, 0: disable(default) 1:enable */
+static volatile int ro_secure_debuggable = 0;
+/* system partition number is platform dependent, MUST change it according to platform */
+#define PART_SYSTEM "mmcblk0p23"
+#endif
+/* DTS2014061400183 jingbing 20140614 end > */
 
 /*
  * Controlling structure to kblockd
@@ -1189,8 +1214,6 @@ struct request *blk_make_request(struct request_queue *q, struct bio *bio,
 	if (unlikely(!rq))
 		return ERR_PTR(-ENOMEM);
 
-	blk_rq_set_block_pc(rq);
-
 	for_each_bio(bio) {
 		struct bio *bounce_bio = bio;
 		int ret;
@@ -1206,22 +1229,6 @@ struct request *blk_make_request(struct request_queue *q, struct bio *bio,
 	return rq;
 }
 EXPORT_SYMBOL(blk_make_request);
-
-/**
- * blk_rq_set_block_pc - initialize a requeest to type BLOCK_PC
- * @rq:		request to be initialized
- *
- */
-void blk_rq_set_block_pc(struct request *rq)
-{
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	rq->__data_len = 0;
-	rq->__sector = (sector_t) -1;
-	rq->bio = rq->biotail = NULL;
-	memset(rq->__cmd, 0, sizeof(rq->__cmd));
-	rq->cmd = rq->__cmd;
-}
-EXPORT_SYMBOL(blk_rq_set_block_pc);
 
 /**
  * blk_requeue_request - put a request back on queue
@@ -1941,6 +1948,17 @@ void generic_make_request(struct bio *bio)
 }
 EXPORT_SYMBOL(generic_make_request);
 
+/* < DTS2014061400183 jingbing 20140614 begin */
+#ifdef CONFIG_HW_SYSTEM_WR_PROTECT
+int blk_set_ro_secure_debuggable(int state)
+{
+    ro_secure_debuggable = state;
+    return 0;
+}
+EXPORT_SYMBOL(blk_set_ro_secure_debuggable);
+#endif
+/* DTS2014061400183 jingbing 20140614 end > */
+
 /**
  * submit_bio - submit a bio to the block device layer for I/O
  * @rw: whether to %READ or %WRITE, or maybe to %READA (read ahead)
@@ -1953,7 +1971,11 @@ EXPORT_SYMBOL(generic_make_request);
  */
 void submit_bio(int rw, struct bio *bio)
 {
-	struct task_struct *tsk = current;
+    /* < DTS2014061400183 jingbing 20140614 begin */
+#ifdef CONFIG_HW_SYSTEM_WR_PROTECT
+    char devname[BDEVNAME_SIZE] = {0};
+#endif
+    /* DTS2014061400183 jingbing 20140614 end > */
 	bio->bi_rw |= rw;
 
 	/*
@@ -1975,20 +1997,62 @@ void submit_bio(int rw, struct bio *bio)
 			count_vm_events(PGPGIN, count);
 		}
 
+ /* < DTS2014061400183 jingbing 20140614 begin */
+#ifdef CONFIG_HW_SYSTEM_WR_PROTECT
+        if(rw & WRITE)
+        {
+            memset(devname, 0x00, BDEVNAME_SIZE);
+            bdevname(bio->bi_bdev, devname);
+
+            /*
+             * runmode=factory:send write request to mmc driver.
+             * bootmode=recovery:send write request to mmc driver.
+             * partition is mounted ro: file system will block write request.
+             * root user: send write request to mmc driver.
+             */
+            if((strstr(devname,PART_SYSTEM)!=NULL) &&
+                    ro_secure_debuggable)
+            {
+				/* < DTS2014081108133 duanhuan 20140805 begin */
+				/* < DTS2014111306772 duanhuan 20141110 begin */
+#ifdef CONFIG_HUAWEI_DSM
+				/* DTS2014111306772 duanhuan 20141110 end > */
+				DSM_EMMC_LOG(NULL, DSM_SYSTEM_W_ERR,
+					"%s(%d)[Parent: %s(%d)]: %s block %Lu on %s (%u sectors) %d %s.\n",
+					current->comm, task_pid_nr(current),current->parent->comm,task_pid_nr(current->parent),
+					(rw & WRITE) ? "WRITE" : "READ",
+					(unsigned long long)bio->bi_sector,
+					devname,
+					count,
+					ro_secure_debuggable,
+					(strstr(saved_command_line,"androidboot.widvine_state=locked") != NULL) ? "locked" : "unlock");
+#else
+                printk(KERN_DEBUG "[HW]:EXT4_ERR_CAPS:%s(%d)[Parent: %s(%d)]: %s block %Lu on %s (%u sectors) %d %s.\n",
+                        current->comm, task_pid_nr(current), current->parent->comm,task_pid_nr(current->parent),
+                        (rw & WRITE) ? "WRITE" : "READ",
+                        (unsigned long long)bio->bi_sector,
+                        devname,
+                        count,
+                        ro_secure_debuggable,
+                        (strstr(saved_command_line,"androidboot.widvine_state=locked") != NULL) ? "locked" : "unlock");
+
+#endif
+				/*DTS2014081108133 duanhuan 20140805 end > */
+
+#ifdef CONFIG_HW_SYSTEM_WR_PROTECT_ENABLE
+            	bio_endio(bio, -EIO);
+                return;
+#endif
+            }
+        }
+#endif
+        /* DTS2014061400183 jingbing 20140614 end > */
+
+        
 		if (unlikely(block_dump)) {
 			char b[BDEVNAME_SIZE];
-
-			/*
-			 * Not all the pages in the bio are dirtied by the
-			 * same task but most likely it will be, since the
-			 * sectors accessed on the device must be adjacent.
-			 */
-			if (bio->bi_io_vec && bio->bi_io_vec->bv_page &&
-			    bio->bi_io_vec->bv_page->tsk_dirty)
-				tsk = bio->bi_io_vec->bv_page->tsk_dirty;
-
 			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s (%u sectors)\n",
-				tsk->comm, task_pid_nr(tsk),
+			current->comm, task_pid_nr(current),
 				(rw & WRITE) ? "WRITE" : "READ",
 				(unsigned long long)bio->bi_sector,
 				bdevname(bio->bi_bdev, b),
@@ -2408,7 +2472,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	if (!req->bio)
 		return false;
 
-	trace_block_rq_complete(req->q, req, nr_bytes);
+	trace_block_rq_complete(req->q, req);
 
 	/*
 	 * For fs requests, rq is just carrier of independent bio's
@@ -3215,9 +3279,6 @@ int blk_pre_runtime_suspend(struct request_queue *q)
 {
 	int ret = 0;
 
-	if (!q->dev)
-		return ret;
-
 	spin_lock_irq(q->queue_lock);
 	if (q->nr_pending) {
 		ret = -EBUSY;
@@ -3245,9 +3306,6 @@ EXPORT_SYMBOL(blk_pre_runtime_suspend);
  */
 void blk_post_runtime_suspend(struct request_queue *q, int err)
 {
-	if (!q->dev)
-		return;
-
 	spin_lock_irq(q->queue_lock);
 	if (!err) {
 		q->rpm_status = RPM_SUSPENDED;
@@ -3272,9 +3330,6 @@ EXPORT_SYMBOL(blk_post_runtime_suspend);
  */
 void blk_pre_runtime_resume(struct request_queue *q)
 {
-	if (!q->dev)
-		return;
-
 	spin_lock_irq(q->queue_lock);
 	q->rpm_status = RPM_RESUMING;
 	spin_unlock_irq(q->queue_lock);
@@ -3297,9 +3352,6 @@ EXPORT_SYMBOL(blk_pre_runtime_resume);
  */
 void blk_post_runtime_resume(struct request_queue *q, int err)
 {
-	if (!q->dev)
-		return;
-
 	spin_lock_irq(q->queue_lock);
 	if (!err) {
 		q->rpm_status = RPM_ACTIVE;

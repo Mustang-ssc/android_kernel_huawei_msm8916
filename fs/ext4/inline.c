@@ -339,10 +339,8 @@ static int ext4_update_inline_data(handle_t *handle, struct inode *inode,
 
 	len -= EXT4_MIN_INLINE_DATA_SIZE;
 	value = kzalloc(len, GFP_NOFS);
-	if (!value) {
-		error = -ENOMEM;
+	if (!value)
 		goto out;
-	}
 
 	error = ext4_xattr_ibody_get(inode, i.name_index, i.name,
 				     value, len);
@@ -1147,9 +1145,10 @@ static int ext4_finish_convert_inline_dir(handle_t *handle,
 	set_buffer_uptodate(dir_block);
 	err = ext4_handle_dirty_dirent_node(handle, inode, dir_block);
 	if (err)
-		return err;
+		goto out;
 	set_buffer_verified(dir_block);
-	return ext4_mark_inode_dirty(handle, inode);
+out:
+	return err;
 }
 
 static int ext4_convert_inline_data_nolock(handle_t *handle,
@@ -1619,10 +1618,20 @@ out:
 	return ret;
 }
 
+/* < DTS2014071404370 shiguojun 20140714 begin */
+#ifdef CONFIG_SDCARD_FS_CI_SEARCH
 struct buffer_head *ext4_find_inline_entry(struct inode *dir,
-					const struct qstr *d_name,
-					struct ext4_dir_entry_2 **res_dir,
-					int *has_inline_data)
+        const struct qstr *d_name,
+        struct ext4_dir_entry_2 **res_dir,
+        int *has_inline_data,
+        char* ci_name_buf)
+#else
+struct buffer_head *ext4_find_inline_entry(struct inode *dir,
+        const struct qstr *d_name,
+        struct ext4_dir_entry_2 **res_dir,
+        int *has_inline_data)
+#endif
+/* DTS2014071404370 shiguojun 20140714 end > */
 {
 	int ret;
 	struct ext4_iloc iloc;
@@ -1641,8 +1650,15 @@ struct buffer_head *ext4_find_inline_entry(struct inode *dir,
 	inline_start = (void *)ext4_raw_inode(&iloc)->i_block +
 						EXT4_INLINE_DOTDOT_SIZE;
 	inline_size = EXT4_MIN_INLINE_DATA_SIZE - EXT4_INLINE_DOTDOT_SIZE;
-	ret = search_dir(iloc.bh, inline_start, inline_size,
-			 dir, d_name, 0, res_dir);
+    /* < DTS2014071404370 shiguojun 20140714 begin */
+#ifdef CONFIG_SDCARD_FS_CI_SEARCH
+    ret = search_dir(iloc.bh, inline_start, inline_size,
+            dir, d_name, 0, res_dir, ci_name_buf);
+#else
+    ret = search_dir(iloc.bh, inline_start, inline_size,
+            dir, d_name, 0, res_dir);
+#endif
+    /* DTS2014071404370 shiguojun 20140714 end > */
 	if (ret == 1)
 		goto out_find;
 	if (ret < 0)
@@ -1654,8 +1670,15 @@ struct buffer_head *ext4_find_inline_entry(struct inode *dir,
 	inline_start = ext4_get_inline_xattr_pos(dir, &iloc);
 	inline_size = ext4_get_inline_size(dir) - EXT4_MIN_INLINE_DATA_SIZE;
 
-	ret = search_dir(iloc.bh, inline_start, inline_size,
-			 dir, d_name, 0, res_dir);
+    /* < DTS2014071404370 shiguojun 20140714 begin */
+#ifdef CONFIG_SDCARD_FS_CI_SEARCH
+    ret = search_dir(iloc.bh, inline_start, inline_size,
+            dir, d_name, 0, res_dir, ci_name_buf);
+#else
+    ret = search_dir(iloc.bh, inline_start, inline_size,
+            dir, d_name, 0, res_dir);
+#endif
+    /* DTS2014071404370 shiguojun 20140714 end > */
 	if (ret == 1)
 		goto out_find;
 
@@ -1958,11 +1981,9 @@ void ext4_inline_data_truncate(struct inode *inode, int *has_inline)
 		}
 
 		/* Clear the content within i_blocks. */
-		if (i_size < EXT4_MIN_INLINE_DATA_SIZE) {
-			void *p = (void *) ext4_raw_inode(&is.iloc)->i_block;
-			memset(p + i_size, 0,
-			       EXT4_MIN_INLINE_DATA_SIZE - i_size);
-		}
+		if (i_size < EXT4_MIN_INLINE_DATA_SIZE)
+			memset(ext4_raw_inode(&is.iloc)->i_block + i_size, 0,
+					EXT4_MIN_INLINE_DATA_SIZE - i_size);
 
 		EXT4_I(inode)->i_inline_size = i_size <
 					EXT4_MIN_INLINE_DATA_SIZE ?

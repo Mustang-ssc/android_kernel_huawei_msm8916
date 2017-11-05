@@ -175,20 +175,17 @@ extern void swsusp_show_speed(struct timeval *, struct timeval *,
 				unsigned int, char *);
 
 #ifdef CONFIG_SUSPEND
-struct pm_sleep_state {
-	const char *label;
-	suspend_state_t state;
-};
-
 /* kernel/power/suspend.c */
-extern struct pm_sleep_state pm_states[];
+extern const char *const pm_states[];
 
+extern bool valid_state(suspend_state_t state);
 extern int suspend_devices_and_enter(suspend_state_t state);
 #else /* !CONFIG_SUSPEND */
 static inline int suspend_devices_and_enter(suspend_state_t state)
 {
 	return -ENOSYS;
 }
+static inline bool valid_state(suspend_state_t state) { return false; }
 #endif /* !CONFIG_SUSPEND */
 
 #ifdef CONFIG_PM_TEST_SUSPEND
@@ -288,7 +285,12 @@ static inline void pm_autosleep_unlock(void) {}
 static inline suspend_state_t pm_autosleep_state(void) { return PM_SUSPEND_ON; }
 
 #endif /* !CONFIG_PM_AUTOSLEEP */
-
+/* < DTS2014061303901 zhaoyingchun 20140625 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+extern int suspend_sys_sync_wait(void);
+extern void suspend_sys_sync_queue(void);
+#endif
+/* DTS2014061303901 zhaoyingchun 20140625 end > */
 #ifdef CONFIG_PM_WAKELOCKS
 
 /* kernel/power/wakelock.c */

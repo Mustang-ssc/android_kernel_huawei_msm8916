@@ -17,6 +17,11 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/kmod.h>
+/* < DTS2014061303901 zhaoyingchun 20140625 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+extern int suspend_sys_sync_wait(void);
+#endif
+/* DTS2014061303901 zhaoyingchun 20140625 end > */
 
 /* 
  * Timeout for stopping processes
@@ -84,6 +89,16 @@ static int try_to_freeze_tasks(bool user_only)
 
 	if (todo) {
 		printk("\n");
+
+/* <DTS2014050904735  wuliuzhen 20140509 begin */ 
+#ifdef CONFIG_HUAWEI_KERNEL
+		if(wakeup) {
+			printk(KERN_ERR "Freezing of %s aborted, system been waking up\n",
+					user_only ? "user space " : "tasks ");
+		}
+#endif
+/* DTS2014050904735  wuliuzhen 20140509 end> */ 
+
 		printk(KERN_ERR "Freezing of tasks %s after %d.%03d seconds "
 		       "(%d tasks refusing to freeze, wq_busy=%d):\n",
 		       wakeup ? "aborted" : "failed",
@@ -107,28 +122,6 @@ static int try_to_freeze_tasks(bool user_only)
 	return todo ? -EBUSY : 0;
 }
 
-/*
- * Returns true if all freezable tasks (except for current) are frozen already
- */
-static bool check_frozen_processes(void)
-{
-	struct task_struct *g, *p;
-	bool ret = true;
-
-	read_lock(&tasklist_lock);
-	for_each_process_thread(g, p) {
-		if (p != current && !freezer_should_skip(p) &&
-		    !frozen(p)) {
-			ret = false;
-			goto done;
-		}
-	}
-done:
-	read_unlock(&tasklist_lock);
-
-	return ret;
-}
-
 /**
  * freeze_processes - Signal user space processes to enter the refrigerator.
  *
@@ -137,7 +130,6 @@ done:
 int freeze_processes(void)
 {
 	int error;
-	int oom_kills_saved;
 
 	error = __usermodehelper_disable(UMH_FREEZING);
 	if (error)
@@ -148,27 +140,12 @@ int freeze_processes(void)
 
 	printk("Freezing user space processes ... ");
 	pm_freezing = true;
-	oom_kills_saved = oom_kills_count();
 	error = try_to_freeze_tasks(true);
 	if (!error) {
+		printk("done.");
 		__usermodehelper_set_disable_depth(UMH_DISABLED);
 		oom_killer_disable();
-
-		/*
-		 * There might have been an OOM kill while we were
-		 * freezing tasks and the killed task might be still
-		 * on the way out so we have to double check for race.
-		 */
-		if (oom_kills_count() != oom_kills_saved &&
-				!check_frozen_processes()) {
-			__usermodehelper_set_disable_depth(UMH_ENABLED);
-			printk("OOM in progress.");
-			error = -EBUSY;
-			goto done;
-		}
-		printk("done.");
 	}
-done:
 	printk("\n");
 	BUG_ON(in_atomic());
 
@@ -189,6 +166,14 @@ int freeze_kernel_threads(void)
 {
 	int error;
 
+/* < DTS2014061303901 zhaoyingchun 20140625 begin */
+#ifdef CONFIG_HUAWEI_KERNEL
+    error = suspend_sys_sync_wait();
+	if(error)
+	   return error;
+#endif
+/* DTS2014061303901 zhaoyingchun 20140625 end > */
+	
 	printk("Freezing remaining freezable tasks ... ");
 	pm_nosig_freezing = true;
 	error = try_to_freeze_tasks(false);
@@ -216,7 +201,6 @@ void thaw_processes(void)
 
 	printk("Restarting tasks ... ");
 
-	__usermodehelper_set_disable_depth(UMH_FREEZING);
 	thaw_workqueues();
 
 	read_lock(&tasklist_lock);
